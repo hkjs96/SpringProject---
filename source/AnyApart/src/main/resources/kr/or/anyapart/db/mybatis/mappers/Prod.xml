@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.anyapart.asset.prod.dao.ProdDAO">
+	
+	<sql id="searchFrag">
+		<where>
+			APT_CODE = #{searchVO.searchAptCode}
+			<if test="searchVO!=null and @org.apache.commons.lang3.StringUtils@isNotBlank(searchVO.searchWord)">
+				<choose>
+<!-- 					<when test="'aptName'.equals(searchVO.searchType)"> -->
+<!-- 						INSTR(APT_NAME, #{searchVO.searchWord}) > 0 -->
+<!-- 					</when> -->
+<!-- 					<when test="'aptHead'.equals(searchVO.searchType)"> -->
+<!-- 						INSTR(APT_HEAD, #{searchVO.searchWord}) > 0 -->
+<!-- 					</when> -->
+<!-- 					<when test="'aptAdd1'.equals(searchVO.searchType)"> -->
+<!-- 						INSTR(APT_ADD1, #{searchVO.searchWord}) > 0 -->
+<!-- 					</when> -->
+					<otherwise>
+						AND( INSTR(PROD_ID, #{searchVO.searchWord}) > 0
+						OR INSTR(PROD_CODE, #{searchVO.searchWord}) > 0
+						OR INSTR(PROD_NAME, #{searchVO.searchWord}) > 0 
+						OR INSTR(PROD_COMPANY, #{searchVO.searchWord}) > 0 ) 
+					</otherwise>
+				</choose>
+			</if>
+			<if test="searchDetail!=null and @org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.prodCode)">
+				AND PROD_CODE = #{searchDetail.prodCode}
+			</if>
+		</where>
+	</sql>
+	
+	<select id="prodCount" parameterType="kr.or.anyapart.vo.PagingVO" resultType="int">
+		SELECT count(*)
+		FROM PROD A
+		    LEFT OUTER JOIN COMMONCODE B ON ( A.PROD_CODE = B.CODE_ID)
+		<include refid="searchFrag" />
+	</select>
+	
+	<select id="retrieveProdList" parameterType="kr.or.anyapart.vo.PagingVO" resultType="kr.or.anyapart.asset.vo.ProdVO">
+		SELECT B.*
+			FROM (
+				SELECT A.*, ROWNUM RNUM
+				FROM (
+					SELECT
+					    A.PROD_ID,
+					    B.CODE_NAME AS PROD_CODE,
+					    A.PROD_NAME,
+					    A.PROD_PRICE,
+					    A.PROD_COMPANY,
+					    A.PROD_QTY,
+					    A.APT_CODE
+					FROM
+					    PROD A LEFT OUTER JOIN COMMONCODE B ON (A.PROD_CODE = B.CODE_ID)
+					<include refid="searchFrag" />
+					ORDER BY 1 DESC
+				) A
+			) B
+		<![CDATA[		
+			WHERE RNUM >= #{startRow} AND RNUM <= #{endRow}
+		]]>
+	</select>
+	
+	<insert id="insertProd" parameterType="java.util.List">
+		<foreach collection="list" item="prod" index="index" separator=" " open="INSERT ALL" close="SELECT * FROM DUAL">
+			INTO PROD (
+			    PROD_ID,
+			    PROD_CODE,
+			    PROD_NAME,
+			    PROD_PRICE,
+			    PROD_COMPANY,
+			    PROD_QTY,
+			    APT_CODE
+			) VALUES (
+				( SELECT #{prod.aptCode}||'P'||NVL(LPAD(SUBSTR(MAX(PROD_ID),7) + 1 + #{index }, 3, '0'), '001')
+			        FROM PROD
+			        WHERE APT_CODE = #{prod.aptCode}
+			    )
+				, #{prod.prodCode}
+				, #{prod.prodName}
+				, #{prod.prodPrice}
+				, #{prod.prodCompany}
+				, #{prod.prodQty}
+				, #{prod.aptCode}
+			)
+			
+			INTO PRODDETAIL (
+				IO_NO,
+			    PROD_ID,
+			    PROD_IO_DATE,
+			    PROD_IO_QTY,
+			    PROD_IO
+			) VALUES (
+				( SELECT NVL(MAX(IO_NO),0) + 1 + #{index}
+			        FROM PRODDETAIL
+			    )
+				, ( SELECT #{prod.aptCode}||'P'||NVL(LPAD(SUBSTR(MAX(PROD_ID),7) + 1 + #{index }, 3, '0'), '001')
+			        FROM PROD
+			        WHERE APT_CODE = #{prod.aptCode}
+			    )
+			    , sysdate
+			    , #{prod.prodQty}
+			    , 'PURCHASE'
+			)
+		</foreach>
+	</insert>
+	
+	<resultMap type="kr.or.anyapart.asset.vo.ProdVO" id="prodMap" autoMapping="true">
+		<id property="prodId" column="PROD_ID"/>
+		<collection property="detailList" ofType="kr.or.anyapart.asset.vo.ProdDetailVO" autoMapping="true">
+			<id property="ioNo" column="IO_NO"/>
+		</collection>	
+		<collection property="repairList" ofType="kr.or.anyapart.asset.vo.RepairVO" autoMapping="true">
+			<id property="repairNo" column="REPAIR_NO"/>
+		</collection>	
+	</resultMap>
+	
+	<select id="retrieveProd" resultType="kr.or.anyapart.asset.vo.ProdVO" resultMap="prodMap">
+		SELECT
+		    A.PROD_ID,
+		    D.CODE_NAME AS PROD_CODE,
+		    A.PROD_NAME,
+		    A.PROD_PRICE,
+		    A.PROD_COMPANY,
+		    A.PROD_QTY,
+		    A.APT_CODE
+		    
+		    , TO_CHAR(B.PROD_IO_DATE, 'YYYY/MM/DD') AS PROD_IO_DATE,
+		    B.PROD_IO_QTY,
+		    E.CODE_NAME AS PROD_IO,
+		    B.IO_NO
+		    
+		    , TO_CHAR(C.REPAIR_DATE, 'YYYY/MM/DD') AS REPAIR_DATE,
+		    C.REPAIR_CONTENT,
+		    C.REPAIR_PRICE,
+		    C.REPAIR_NO
+		FROM
+		    PROD A LEFT OUTER JOIN PRODDETAIL B ON (A.PROD_ID = B.PROD_ID)
+		           LEFT OUTER JOIN REPAIR C ON (A.PROD_ID = C. PROD_ID)
+		           LEFT OUTER JOIN COMMONCODE D ON (A.PROD_CODE = D.CODE_ID)
+                   LEFT OUTER JOIN COMMONCODE E ON (B.PROD_IO = E.CODE_ID)
+		WHERE A.PROD_ID = #{prodId } 
+		  AND A.APT_CODE = #{aptCode } 
+	</select>
+</mapper>

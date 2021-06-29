@@ -1,0 +1,281 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.anyapart.meter.dao.IMeterIndvDAO">
+<sql id="searchDongHo">
+	<if test="searchDetail!=null">
+		<choose>
+			<when test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.startDong) and
+						@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.startHo) and
+						@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.endDong) and !'0000'.equals(searchDetail.endDong) and
+						@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.endHo)">
+			AND DONG BETWEEN #{searchDetail.startDong} AND #{searchDetail.endDong}
+        	AND HO BETWEEN #{searchDetail.startHo} AND #{searchDetail.endHo}			
+			</when>
+			<when test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.startDong) and
+						@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.startHo)">
+			AND DONG >= #{searchDetail.startDong} AND HO >= #{searchDetail.startHo} 			
+			</when>
+		</choose>
+	</if>
+</sql>
+
+<sql id="searchYearMonth">
+	<if test="searchDetail!=null">
+		<choose>
+			<when test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.startYear) and 
+						@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.startMonth) and 
+						@org.apache.commons.lang3.StringUtils@isBlank(searchDetail.endYear) and 
+						@org.apache.commons.lang3.StringUtils@isBlank(searchDetail.endMonth)">
+				AND INDV_YEAR >= #{searchDetail.startYear} AND INDV_MONTH >= #{searchDetail.startMonth} 
+			</when>
+			<when test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.startYear) and 
+						@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.startMonth) and 
+						@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.endYear) and 
+						@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.endMonth)">
+				AND TO_CHAR(INDV_YEAR)||LPAD(TO_CHAR(INDV_MONTH),2,'0')
+			        BETWEEN TO_CHAR(#{searchDetail.startYear})||LPAD(TO_CHAR(#{searchDetail.startMonth}),2,'0')
+			            AND TO_CHAR(#{searchDetail.endYear})||LPAD(TO_CHAR(#{searchDetail.endMonth}),2,'0')
+			</when>
+		</choose>
+	</if>
+</sql>
+
+<sql id="searchResName">
+	<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.resName)">
+		AND B.RES_NAME = #{searchDetail.resName}
+	</if>
+</sql>
+
+<select id="selectMeterIndvCount" parameterType="kr.or.anyapart.vo.PagingVO" resultType="int">
+	SELECT COUNT(*)
+    FROM INDIVIDUALMETER A LEFT OUTER JOIN RESIDENT B ON(A.MEM_ID = B.MEM_ID)
+        LEFT OUTER JOIN HOUSE C ON(B.HOUSE_CODE = C.HOUSE_CODE)
+    WHERE C.APT_CODE = #{searchVO.searchAptCode}
+    <include refid="searchDongHo" />
+    <include refid="searchYearMonth" />
+    <include refid="searchResName" />
+</select>
+
+<select id="selectMeterIndvList" parameterType="kr.or.anyapart.vo.PagingVO" resultType="kr.or.anyapart.meter.vo.MeterIndvVO">
+	SELECT B.*
+	FROM(
+	    SELECT ROWNUM RNUM, A.*
+	    FROM(
+	        SELECT
+	            INDV_NO,
+	            INDV_YEAR,
+	            INDV_MONTH,
+	            INDV_HEAT,
+	            INDV_HOTWATER,
+	            INDV_WATER,
+	            INDV_ELEC,
+	            A.MEM_ID, 
+	            B.HOUSE_CODE,
+	            C.DONG,
+            	C.HO,
+	            C.APT_CODE
+	        FROM INDIVIDUALMETER A LEFT OUTER JOIN RESIDENT B ON(A.MEM_ID = B.MEM_ID)
+	            LEFT OUTER JOIN HOUSE C ON(B.HOUSE_CODE = C.HOUSE_CODE)
+	        WHERE C.APT_CODE = #{searchVO.searchAptCode}
+	        <include refid="searchDongHo" />
+   			<include refid="searchYearMonth" />
+   			<include refid="searchResName" />
+	        ORDER BY INDV_YEAR DESC, INDV_MONTH DESC, INDV_NO DESC   
+	        )A
+	    ORDER BY RNUM ) B
+	WHERE RNUM BETWEEN #{startRow} AND #{endRow}
+</select>
+
+<select id="selectMeterIndvListdd" parameterType="kr.or.anyapart.vo.PagingVO" resultType="kr.or.anyapart.meter.vo.MeterIndvVO">
+	SELECT X.*, 
+	    W.INDV_HEAT - X.INDV_HEAT c_Heat,
+	    W.INDV_HOTWATER - X.INDV_HOTWATER c_Hotwater,
+	    W.INDV_WATER - X.INDV_WATER c_Water,
+	    W.INDV_ELEC - X.INDV_ELEC c_Elec
+	FROM INDIVIDUALMETER W, (
+	SELECT Y.*, TO_CHAR(ADD_MONTHS(TO_DATE(Y.INDV_YEAR||'0'||INDV_MONTH||'01'), -1), 'YYYY') p_Year
+	            , TO_CHAR(ADD_MONTHS(TO_DATE(Y.INDV_YEAR||'0'||INDV_MONTH||'01'), -1), 'MM') p_Month
+		FROM(
+		    SELECT ROWNUM RNUM, Z.*
+		    FROM(
+		        SELECT
+		            INDV_NO,
+		            INDV_YEAR ,
+		            INDV_MONTH ,
+	                A.INDV_HEAT ,
+	                A.INDV_HOTWATER,
+	                A.INDV_WATER,
+	                A.INDV_ELEC,
+	                A.MEM_ID, 
+		            B.HOUSE_CODE,
+		            C.DONG,
+            		C.HO,
+		            C.APT_CODE
+		        FROM INDIVIDUALMETER A LEFT OUTER JOIN RESIDENT B ON(A.MEM_ID = B.MEM_ID)
+		            LEFT OUTER JOIN HOUSE C ON(B.HOUSE_CODE = C.HOUSE_CODE)
+		        WHERE C.APT_CODE = #{searchVO.searchAptCode}
+		        ORDER BY INDV_YEAR DESC, INDV_MONTH DESC, INDV_NO DESC   
+		        )Z
+		    ORDER BY RNUM ) Y
+		WHERE RNUM BETWEEN #{startRow} AND #{endRow}) X
+	WHERE W.INDV_YEAR=P_YEAR AND W.INDV_MONTH=P_MONTH
+	AND X.MEM_ID=W.MEM_ID
+	ORDER BY RNUM
+</select>
+
+<select id="selectMeterIndv" parameterType="kr.or.anyapart.meter.vo.MeterIndvVO" resultType="kr.or.anyapart.meter.vo.MeterIndvVO">
+	SELECT
+	    INDV_NO,
+	    INDV_YEAR,
+	    INDV_MONTH,
+	    INDV_HEAT,
+	    INDV_HOTWATER,
+	    INDV_WATER,
+	    INDV_ELEC,
+	    MEM_ID
+	FROM INDIVIDUALMETER
+	WHERE INDV_NO = #{indvNo}
+</select>
+
+<select id="selectResident" parameterType="kr.or.anyapart.meter.vo.MeterIndvVO" resultType="kr.or.anyapart.resident.vo.ResidentVO">
+	SELECT
+	    MEM_ID,
+	    HOUSE_CODE,
+	    RES_NAME,
+	    RES_HP,
+	    RES_TEL,
+	    RES_MAIL,
+	    RES_BIRTH,
+	    RES_JOB,
+	    RES_MOVEIN,
+	    RES_MOVEOUT
+	FROM RESIDENT
+	WHERE MEM_ID=#{memId}
+</select>
+
+<select id="selectExcelMeterIndv" parameterType="kr.or.anyapart.meter.vo.MeterIndvVO" resultType="kr.or.anyapart.meter.vo.MeterIndvVO">
+	SELECT
+	    INDV_NO,
+	    INDV_YEAR,
+	    INDV_MONTH,
+	    INDV_HEAT,
+	    INDV_HOTWATER,
+	    INDV_WATER,
+	    INDV_ELEC,
+	    MEM_ID
+	FROM INDIVIDUALMETER
+	WHERE INDV_YEAR = #{indvYear}
+	AND INDV_MONTH = #{indvMonth}
+	AND MEM_ID = #{memId}
+</select>
+
+<select id="selectMeterAllList" parameterType="kr.or.anyapart.meter.vo.MeterIndvVO" resultType="kr.or.anyapart.meter.vo.MeterIndvVO">
+	SELECT
+	    INDV_YEAR,
+	    INDV_MONTH,
+	    SUM(INDV_HEAT) HEAT_SUM,
+	    SUM(INDV_HOTWATER) HOTWATER_SUM,
+	    SUM(INDV_WATER) WATER_SUM,
+	    SUM(INDV_ELEC) ELEC_SUM,
+	    C.DONG
+	FROM INDIVIDUALMETER A LEFT OUTER JOIN RESIDENT B ON(A.MEM_ID = B.MEM_ID)
+		            LEFT OUTER JOIN HOUSE C ON(B.HOUSE_CODE = C.HOUSE_CODE)
+	WHERE INDV_YEAR=#{indvYear} 
+	AND DONG=#{dong}
+	GROUP BY INDV_MONTH, C.DONG, INDV_YEAR
+	ORDER BY INDV_MONTH
+</select>
+
+<select id="selectMeterIndvEnergyList" parameterType="kr.or.anyapart.meter.vo.MeterIndvVO" resultType="kr.or.anyapart.meter.vo.MeterIndvVO">
+	SELECT
+	    INDV_MONTH,
+	    SUM(INDV_HEAT) HEAT_SUM,
+	    SUM(INDV_HOTWATER) HOTWATER_SUM,
+	    SUM(INDV_WATER) WATER_SUM,
+	    SUM(INDV_ELEC) ELEC_SUM,
+	    C.DONG
+	FROM INDIVIDUALMETER A LEFT OUTER JOIN RESIDENT B ON(A.MEM_ID = B.MEM_ID)
+		            LEFT OUTER JOIN HOUSE C ON(B.HOUSE_CODE = C.HOUSE_CODE)
+	WHERE INDV_YEAR=#{indvYear} 
+	AND C.DONG=#{dong}
+	AND APT_CODE=#{aptCode}
+	GROUP BY C.DONG, INDV_MONTH
+	ORDER BY INDV_MONTH
+</select>
+
+<select id="selectIndvMeterTotalCnt" parameterType="kr.or.anyapart.vo.PagingVO" resultType="int">
+	SELECT COUNT(*) 
+	FROM INDIVIDUALMETER A LEFT OUTER JOIN RESIDENT B ON(A.MEM_ID=B.MEM_ID)
+	                        LEFT OUTER JOIN HOUSE C ON(B.HOUSE_CODE = C.HOUSE_CODE)
+	WHERE C.APT_CODE=#{searchVO.searchAptCode}
+</select>
+
+<insert id="insertIndvMeter" parameterType="kr.or.anyapart.meter.vo.MeterIndvVO">
+	<selectKey order="BEFORE" keyProperty="indvNo" resultType="int">
+		SELECT NVL(MAX(INDV_NO)+1, 0)
+		FROM INDIVIDUALMETER
+	</selectKey>
+	INSERT INTO INDIVIDUALMETER (
+	    INDV_NO,
+	    INDV_YEAR,
+	    INDV_MONTH,
+	    INDV_HEAT,
+	    INDV_HOTWATER,
+	    INDV_WATER,
+	    INDV_ELEC,
+	    MEM_ID
+	) VALUES (
+		#{indvNo}
+		,#{indvYear}	  	
+		,#{indvMonth}	  	
+		,#{indvHeat}	  	
+		,#{indvHotwater}	  	
+		,#{indvWater}	  	
+		,#{indvElec}	  	
+		,#{memId}	  	
+	)
+</insert>
+
+<insert id="insertAllIndvMeter" parameterType="java.util.List">
+	<foreach collection="indvList" item="indv" index="index" open="INSERT ALL" separator=" " close="SELECT * FROM DUAL">
+		INTO INDIVIDUALMETER (
+		    INDV_NO,
+		    INDV_YEAR,
+		    INDV_MONTH,
+		    INDV_HEAT,
+		    INDV_HOTWATER,
+		    INDV_WATER,
+		    INDV_ELEC,
+		    MEM_ID
+		) VALUES (
+			( SELECT NVL(MAX(INDV_NO)+1, 0)+#{index}
+			  FROM INDIVIDUALMETER
+			)
+			,#{indv.indvYear}	  	
+			,#{indv.indvMonth}	  	
+			,#{indv.indvHeat}	  	
+			,#{indv.indvHotwater}	  	
+			,#{indv.indvWater}	  	
+			,#{indv.indvElec}	  	
+			,#{indv.memId}	  	
+		)
+	</foreach>
+</insert>
+
+<update id="updateMeterIndv" parameterType="kr.or.anyapart.meter.vo.MeterIndvVO">
+	UPDATE INDIVIDUALMETER
+    SET	INDV_YEAR = #{indvYear},
+	    INDV_MONTH = #{indvMonth},
+	    INDV_HEAT = #{indvHeat},
+	    INDV_HOTWATER = #{indvHotwater},
+	    INDV_WATER = #{indvWater},
+	    INDV_ELEC = #{indvElec},
+	    MEM_ID = #{memId}
+	WHERE INDV_NO  = #{indvNo}
+</update>
+
+<delete id="deleteMeterIndv" parameterType="kr.or.anyapart.meter.vo.MeterIndvVO">
+	DELETE INDIVIDUALMETER
+	WHERE INDV_NO = #{indvNo}
+</delete>
+</mapper>

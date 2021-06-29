@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.anyapart.payment.dao.SeveranceDAO">
+	<sql id="searchFrag">
+	 	WHERE EMP_END IS NULL
+		<if test="searchVO!=null">
+			<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchVO.searchAptCode)">
+				 AND INSTR(EMPLOYEE.MEM_ID, #{searchVO.searchAptCode}) > 0
+			</if>
+			<if test="searchDetail!=null">
+				<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.searchSvrcS)
+				          and @org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.searchSvrcE)"
+				>
+					AND SVRC_DATE BETWEEN #{searchDetail.searchSvrcS} AND #{searchDetail.searchSvrcE}
+				</if>
+			</if>
+		</if>	
+	</sql>
+	
+	<resultMap type="kr.or.anyapart.payment.vo.SeveranceVO" id="svrcMap" autoMapping="true">
+		<id property="svrcNo" column="EMPSVRCNO"/>
+		<association property="employee" javaType="kr.or.anyapart.employee.vo.EmployeeVO" autoMapping="true"></association>
+	</resultMap>
+	
+	<select id="selectSvcrCount" parameterType="kr.or.anyapart.vo.PagingVO" resultType="int">
+		SELECT COUNT(*)
+		  FROM SEVERANCEPAY LEFT OUTER JOIN EMPLOYEE ON (SEVERANCEPAY.MEM_ID = EMPLOYEE.MEM_ID)
+	                        LEFT OUTER JOIN POSITION ON (EMPLOYEE.POSITION_CODE = POSITION.POSITION_CODE)
+	                        LEFT OUTER JOIN COMMONCODE ON(EMPLOYEE.POSITION_CODE = COMMONCODE.CODE)
+		 <include refid="searchFrag"/>
+	</select>
+
+	<select id="selectSvrcList" parameterType="kr.or.anyapart.vo.PagingVO" resultMap="svrcMap">
+	SELECT B.*
+	  FROM
+	    (SELECT A.*, ROWNUM RNUM 
+	       FROM(SELECT 
+	                SVRC_NO EMPSVRCNO
+	               ,TO_CHAR(SVRC_DATE, 'YYYY-MM-DD') SVRC_DATE
+	               ,SVRC_COST
+	               ,SVRC_COMMENT
+	               ,EMPLOYEE.MEM_ID
+	               ,EMP_NAME
+	               ,POSITION.POSITION_NAME POSITION_CODE
+	           FROM SEVERANCEPAY LEFT OUTER JOIN EMPLOYEE ON (SEVERANCEPAY.MEM_ID = EMPLOYEE.MEM_ID)
+	                        LEFT OUTER JOIN POSITION ON (EMPLOYEE.POSITION_CODE = POSITION.POSITION_CODE)
+	                        LEFT OUTER JOIN COMMONCODE ON(EMPLOYEE.POSITION_CODE = COMMONCODE.CODE)
+	         <include refid="searchFrag"/>
+	          ORDER BY SVRC_DATE DESC
+	        ) A 
+	    )B 
+	WHERE RNUM BETWEEN #{startRow} AND #{endRow}         
+	</select>
+	
+	<insert id="insertSvrc" parameterType="kr.or.anyapart.payment.vo.SeveranceVO">
+		<selectKey order="BEFORE" keyProperty="svrcNo" resultType="int">
+			SELECT NVL(MAX(SVRC_NO), 0)+1
+			  FROM SEVERANCEPAY
+		</selectKey>
+		INSERT INTO SEVERANCEPAY (
+									SVRC_NO 
+									,MEM_ID
+									,SVRC_DATE
+									,SVRC_COST
+									,SVRC_COMMENT
+								) VALUES(
+									#{svrcNo, jdbcType=NUMERIC}
+									,#{memId, jdbcType=VARCHAR}
+									,#{svrcDate, jdbcType=DATE}
+									,#{svrcCost, jdbcType=NUMERIC}
+									,#{svrcComment, jdbcType=VARCHAR}
+								)
+	</insert>
+	
+	<select id="selectSvrcViewForUpdate" parameterType="kr.or.anyapart.payment.vo.SeveranceVO" resultMap="svrcMap">
+		 SELECT 
+	        SVRC_NO EMPSVRCNO
+	       ,TO_CHAR(SVRC_DATE, 'YYYY-MM-DD') SVRC_DATE
+	       ,SVRC_COST
+	       ,SVRC_COMMENT
+	       ,EMPLOYEE.MEM_ID
+	       ,EMP_NAME
+	       ,POSITION.POSITION_NAME POSITION_CODE
+	   FROM SEVERANCEPAY LEFT OUTER JOIN EMPLOYEE ON (SEVERANCEPAY.MEM_ID = EMPLOYEE.MEM_ID)
+	                LEFT OUTER JOIN POSITION ON (EMPLOYEE.POSITION_CODE = POSITION.POSITION_CODE)
+	                LEFT OUTER JOIN COMMONCODE ON(EMPLOYEE.POSITION_CODE = COMMONCODE.CODE)
+	  WHERE SVRC_NO = #{svrcNo}
+	</select>
+	
+	<update id="updateSvrc" parameterType="kr.or.anyapart.payment.vo.SeveranceVO">
+		UPDATE SEVERANCEPAY
+		   SET
+				SVRC_DATE = #{svrcDate, jdbcType=DATE}
+		 		,SVRC_COST = #{svrcCost, jdbcType=NUMERIC}
+				,SVRC_COMMENT = #{svrcComment, jdbcType=VARCHAR}
+		  WHERE SVRC_NO = #{svrcNo} 
+	</update>
+	
+	<delete id="deleteSvrc" parameterType="kr.or.anyapart.payment.vo.SeveranceVO" >
+		DELETE FROM SEVERANCEPAY
+		 WHERE SVRC_NO = #{svrcNo}
+	</delete>
+</mapper>

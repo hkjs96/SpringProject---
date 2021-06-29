@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.anyapart.board.vendornotice.dao.VendorNotcieDAO">
+	<sql id="searchFrag">
+		WHERE BO_TYPE='VNOTICE'
+		<if test="searchVO!=null and @org.apache.commons.lang3.StringUtils@isNotBlank(searchVO.searchWord)">
+			<choose>
+				<when test="'title'.equals(searchVO.searchType)">
+					AND INSTR(BO_TITLE, #{searchVO.searchWord}) > 0
+				</when>
+				<when test="'writer'.equals(searchVO.searchType)">
+					AND INSTR(BO_WRITER, #{searchVO.searchWord}) > 0
+				</when>
+				<when test="'content'.equals(searchVO.searchType)">
+					AND INSTR(BO_CONTENT, #{searchVO.searchWord}) > 0
+				</when>
+				<otherwise>
+					AND 
+					( INSTR(BO_CONTENT, #{searchVO.searchWord}) > 0
+					OR INSTR(BO_WRITER, #{searchVO.searchWord}) > 0
+					OR INSTR(BO_TITLE, #{searchVO.searchWord}) > 0 )
+				</otherwise>
+			</choose>
+		</if>
+	</sql>
+	<resultMap type="kr.or.anyapart.board.vo.BoardVO" id="boardMap" autoMapping="true">
+		<id property="boNo" column="BONO"/>
+		<collection property="attachList" ofType="kr.or.anyapart.vo.AttachVO" autoMapping="true">
+			<id property="attSn" column="ATT_SN"/>
+		</collection>
+	</resultMap>
+
+	<select id="selectvendorNoticeBoardCount" parameterType="kr.or.anyapart.vo.PagingVO" resultType="int">
+		SELECT COUNT(*)
+		FROM BOARD
+		WHERE BO_TYPE='VNOTICE'
+	</select>
+	
+	<select id="selectvendorNoticeBoardList" parameterType="kr.or.anyapart.vo.PagingVO" resultType="kr.or.anyapart.board.vo.BoardVO">
+	SELECT B.*
+		FROM (
+			SELECT A.*, ROWNUM RNUM
+			FROM (
+				SELECT BO_NO , BO_TITLE, BO_WRITER,
+					TO_CHAR(BO_DATE, 'YYYY-MM-DD')BO_DATE, BO_HIT,BO_TYPE, BO_DELETE
+				FROM BOARD
+				<include refid="searchFrag" />
+				ORDER BY BO_NO DESC
+			) A
+		) B	
+		<![CDATA[
+		
+			WHERE RNUM >= #{startRow} AND RNUM <= #{endRow}
+		]]>
+	</select>
+	<select id="selectvendorNoticeBoard" parameterType="kr.or.anyapart.board.vo.BoardVO" resultMap="boardMap">
+	SELECT
+       A.BO_NO BONO,    BO_CONTENT,    BO_TITLE,
+       A.BO_WRITER,    TO_CHAR(BO_DATE, 'YYYY-MM-DD') BO_DATE,    BO_HIT,
+       BO_PARENT, BO_DELETE, BO_TYPE 
+       , ATT_SN,   ATT_SAVENAME,   ATT_FILENAME,
+        ATT_MIME,    ATT_FILESIZE, ATT_FANCY  
+		FROM    BOARD A LEFT OUTER JOIN ATTACH B ON (A.BO_NO = B.BO_NO)
+		WHERE A.BO_NO = #{boNo}
+	</select>
+	
+	
+	<insert id="insertvendorNoticeBoard" parameterType="kr.or.anyapart.board.vo.BoardVO">
+		<selectKey order="BEFORE" keyProperty="boNo" resultType="int">
+			SELECT NVL(MAX(BO_NO), 0)+1
+			FROM BOARD
+		</selectKey>
+		INSERT INTO board (
+		BO_NO, BO_TYPE
+		,BO_TITLE, BO_WRITER
+		,BO_CONTENT, BO_DATE
+		)VALUES(
+		#{boNo,jdbcType=NUMERIC}, 'VNOTICE'
+		,#{boTitle,jdbcType=VARCHAR}, #{boWriter,jdbcType=VARCHAR}
+		,#{boContent,jdbcType=CLOB},SYSDATE
+		)
+	</insert>
+	
+	
+	<delete id="deletevendorNoticeBoard" parameterType="int">
+			DELETE FROM BOARD
+		WHERE BO_NO IN (
+			SELECT BO_NO
+			FROM BOARD
+			START WITH BO_NO = #{boNo}
+			CONNECT BY PRIOR BO_NO = BO_PARENT
+		)
+	</delete>
+	
+	
+	<update id="updatevendorNoticeBoard" parameterType="kr.or.anyapart.board.vo.BoardVO">
+		UPDATE BOARD
+		SET
+			BO_TITLE = #{boTitle,jdbcType=VARCHAR},
+			BO_CONTENT = #{boContent,jdbcType=CLOB},
+			BO_DATE = SYSDATE
+		WHERE BO_NO = #{boNo}
+	</update>
+</mapper>

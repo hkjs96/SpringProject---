@@ -1,0 +1,296 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.anyapart.afterservice.dao.IAfterServiceDAO">
+<sql id="searchFrag">
+	WHERE G.APT_CODE=#{searchVO.searchAptCode}
+		<if test="searchVO!=null and @org.apache.commons.lang3.StringUtils@isNotBlank(searchVO.searchWord)">
+			<choose>
+				<when test="'title'.equals(searchVO.searchType)">
+					AND INSTR(AS_TITLE, #{searchVO.searchWord}) > 0
+				</when>
+				<when test="'memId'.equals(searchVO.searchType)">
+					AND INSTR(A.MEM_ID, #{searchVO.searchWord}) > 0
+				</when>
+				<otherwise>
+					AND INSTR(AS_TITLE, #{searchVO.searchWord}) > 0
+					OR INSTR(A.MEM_ID, #{searchVO.searchWord}) > 0
+					OR INSTR(AS_DATE, #{searchVO.searchWord}) > 0
+				</otherwise>
+			</choose>
+		</if>
+</sql>
+
+<sql id="searchFragVO">
+	<where>
+		<if test="searchDetail!=null">
+			<choose>
+				<when test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.asCode) and @org.apache.commons.lang3.StringUtils@isBlank(searchDetail.asStatus)">
+					AND AS_CODE=#{searchDetail.asCode}
+				</when>
+				<when test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.asStatus) and @org.apache.commons.lang3.StringUtils@isBlank(searchDetail.asCode)">
+					AND AS_STATUS=#{searchDetail.asStatus}
+				</when>
+				<when test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.asStatus) and @org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.asCode)">
+					AND AS_CODE=#{searchDetail.asCode}
+					AND AS_STATUS=#{searchDetail.asStatus}
+				</when>
+			</choose>
+		</if>
+	</where>
+</sql>
+
+<select id="selectAfterServiceCount" parameterType="kr.or.anyapart.vo.PagingVO" resultType="int">
+	SELECT COUNT(*)
+	FROM AFTERSERVICE A LEFT OUTER JOIN RESIDENT F ON(A.MEM_ID = F.MEM_ID)
+			    	LEFT OUTER JOIN HOUSE G ON(F.HOUSE_CODE = G.HOUSE_CODE)
+	<include refid="searchFrag"/>
+	<if test="searchDetail!=null">
+		<choose>
+			<when test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.asCode) and @org.apache.commons.lang3.StringUtils@isBlank(searchDetail.asStatus)">
+				AND AS_CODE=#{searchDetail.asCode}
+			</when>
+			<when test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.asStatus) and @org.apache.commons.lang3.StringUtils@isBlank(searchDetail.asCode)">
+				AND AS_STATUS=#{searchDetail.asStatus}
+			</when>
+			<when test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.asStatus) and @org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.asCode)">
+				AND AS_CODE=#{searchDetail.asCode}
+				AND AS_STATUS=#{searchDetail.asStatus}
+			</when>
+		</choose>
+	</if>
+</select>
+
+<select id="selectAfterServiceList" parameterType="kr.or.anyapart.vo.PagingVO" resultType="kr.or.anyapart.afterservice.vo.AfterServiceVO">
+	SELECT B.*
+	FROM(
+		SELECT ROWNUM RNUM, A.*
+		FROM
+			(SELECT
+			    D.SCHD_NO
+			    , A.AS_NO
+			    ,A.AS_STATUS
+			    ,A.AS_CODE
+			    ,B.CODE_NAME AS AS_STATUS_NAME
+			    ,C.CODE_NAME AS AS_CODE_NAME
+			    ,A.MEM_ID
+			    ,A.AS_TITLE
+			    ,A.AS_CONTENT
+			    ,TO_CHAR(AS_DATE, 'YYYY-MM-DD') AS_DATE
+			    ,A.AS_COMMENT
+			    ,A.AS_SCHEDULE
+			    ,A.AS_EMPLOYEE
+			    ,E.MEM_NICK
+			FROM AFTERSERVICE 
+			    A LEFT OUTER JOIN COMMONCODE B ON A.AS_STATUS = B.CODE_ID
+			    LEFT OUTER JOIN COMMONCODE C ON A.AS_CODE = C.CODE_ID
+			    LEFT OUTER JOIN SCHEDULE D 
+			        ON ( A.AS_NO = D.APPLY_NO AND (D.SCHD_TYPE = 'S003' OR D.SCHD_TYPE = 'S002' ))
+			    LEFT OUTER JOIN MEMBER E ON(A.MEM_ID = E.MEM_ID)
+			    LEFT OUTER JOIN RESIDENT F ON(A.MEM_ID = F.MEM_ID)
+			    LEFT OUTER JOIN HOUSE G ON(F.HOUSE_CODE = G.HOUSE_CODE)
+		    <include refid="searchFrag"/> 
+			<if test="searchDetail!=null">
+				<choose>
+					<when test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.asCode) and @org.apache.commons.lang3.StringUtils@isBlank(searchDetail.asStatus)">
+						AND AS_CODE=#{searchDetail.asCode}
+					</when>
+					<when test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.asStatus) and @org.apache.commons.lang3.StringUtils@isBlank(searchDetail.asCode)">
+						AND AS_STATUS=#{searchDetail.asStatus}
+					</when>
+					<when test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.asStatus) and @org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.asCode)">
+						AND AS_CODE=#{searchDetail.asCode}
+						AND AS_STATUS=#{searchDetail.asStatus}
+					</when>
+				</choose>
+			</if>    
+			ORDER BY AS_NO DESC
+			) A
+			ORDER BY RNUM
+		) B
+	WHERE RNUM BETWEEN #{startRow} AND #{endRow}
+</select>
+
+<select id="selectAfterServiceResident" parameterType="kr.or.anyapart.afterservice.vo.AfterServiceVO" resultType="kr.or.anyapart.afterservice.vo.AfterServiceVO">
+	SELECT
+	    A.AS_NO,
+	    A.AS_STATUS,
+	    A.AS_CODE,
+	    E.CODE_NAME AS AS_CODE_NAME,
+	    F.CODE_NAME AS AS_STATUS_NAME,
+	    A.MEM_ID,
+	    A.AS_TITLE,
+	    A.AS_CONTENT,
+	    TO_CHAR(AS_DATE, 'YYYY-MM-DD') AS_DATE, 
+	    A.AS_COMMENT,
+	    TO_CHAR(AS_SCHEDULE, 'YYYY-MM-DD') AS_SCHEDULE,
+	    A.AS_EMPLOYEE,
+	    B.RES_NAME, 
+	    B.HOUSE_CODE,
+	    C.DONG,
+	    C.HO,
+	    D.MEM_PASS,
+	    E.CODE_NAME
+	 FROM AFTERSERVICE A LEFT OUTER JOIN RESIDENT B ON A.MEM_ID=B.MEM_ID
+            LEFT OUTER JOIN HOUSE C ON B.HOUSE_CODE = C.HOUSE_CODE
+            LEFT OUTER JOIN MEMBER D ON A.MEM_ID=D.MEM_ID
+            LEFT OUTER JOIN COMMONCODE E ON A.AS_CODE = E.CODE_ID
+            LEFT OUTER JOIN COMMONCODE F ON A.AS_STATUS = F.CODE_ID
+	WHERE AS_NO = #{asNo}
+</select>
+
+<select id="selectAsWaitingCnt" parameterType="kr.or.anyapart.vo.PagingVO" resultType="int">
+	SELECT COUNT(*) waitingCnt
+	FROM AFTERSERVICE  A LEFT OUTER JOIN RESIDENT F ON(A.MEM_ID = F.MEM_ID)
+			    	LEFT OUTER JOIN HOUSE G ON(F.HOUSE_CODE = G.HOUSE_CODE)
+	WHERE AS_STATUS='ASHOLD'
+	AND APT_CODE=#{searchVO.searchAptCode}
+</select>
+
+<select id="selectAfterService" parameterType="kr.or.anyapart.afterservice.vo.AfterServiceVO" resultType="kr.or.anyapart.afterservice.vo.AfterServiceVO">
+	SELECT
+	    A.AS_NO,
+	    A.AS_STATUS,
+	    A.AS_CODE,
+	    E.CODE_NAME AS AS_CODE_NAME,
+	    F.CODE_NAME AS AS_STATUS_NAME,
+	    A.MEM_ID,
+	    A.AS_TITLE,
+	    A.AS_CONTENT,
+	    TO_CHAR(AS_DATE, 'YYYY-MM-DD') AS_DATE, 
+	    A.AS_COMMENT,
+	    TO_CHAR(AS_SCHEDULE, 'YYYY-MM-DD') AS_SCHEDULE,
+	    A.AS_EMPLOYEE,
+	    B.RES_NAME, 
+	    B.HOUSE_CODE,
+	    C.DONG,
+	    C.HO,
+	    D.MEM_PASS,
+	    E.CODE_NAME,
+        G.SCHD_NO
+	 FROM AFTERSERVICE A LEFT OUTER JOIN RESIDENT B ON A.MEM_ID=B.MEM_ID
+            LEFT OUTER JOIN HOUSE C ON B.HOUSE_CODE = C.HOUSE_CODE
+            LEFT OUTER JOIN MEMBER D ON A.MEM_ID=D.MEM_ID
+            LEFT OUTER JOIN COMMONCODE E ON A.AS_CODE = E.CODE_ID
+            LEFT OUTER JOIN COMMONCODE F ON A.AS_STATUS = F.CODE_ID
+            LEFT OUTER JOIN SCHEDULE G ON (A.AS_NO = G.APPLY_NO and schd_type='S003')
+	WHERE AS_NO = #{asNo}
+</select>
+
+<select id="selectAsSchedule" parameterType="kr.or.anyapart.afterservice.vo.AfterServiceVO" resultType="kr.or.anyapart.vo.ScheduleVO">
+	SELECT
+	    SCHD_NO,
+	    SCHD_TYPE,
+	    SCHD_TITLE,
+	    SCHD_CONTENT,
+	    SCHD_START,
+	    SCHD_END,
+	    APPLY_NO
+	FROM SCHEDULE    
+    WHERE APPLY_NO = #{asNo}
+    AND (SCHD_TYPE = 'S003' OR SCHD_TYPE = 'S002' )
+</select>
+
+<delete id="deleteAsSchedule" parameterType="kr.or.anyapart.vo.ScheduleVO">
+	DELETE SCHEDULE
+	WHERE SCHD_NO = #{schdNo}
+</delete>
+
+<insert id="insertAfterService" parameterType="kr.or.anyapart.afterservice.vo.AfterServiceVO">
+	<selectKey order="BEFORE" keyProperty="asNo" resultType="int">
+		SELECT NVL(MAX(as_no), 0)+1
+		FROM AFTERSERVICE
+	</selectKey>
+	
+	INSERT INTO AFTERSERVICE (
+	    AS_NO,    
+	    AS_CODE,    
+	    AS_STATUS,
+	    MEM_ID,    
+	    AS_TITLE,    
+	    AS_CONTENT,
+	    AS_DATE
+	) VALUES (
+	    #{asNo},    
+	    #{asCode},  
+	    'ASHOLD',
+	    #{memId},   
+	    #{asTitle},     
+	    #{asContent},
+	    SYSDATE
+	)
+</insert>
+
+<update id="updateAfterService" parameterType="kr.or.anyapart.afterservice.vo.AfterServiceVO">
+	UPDATE AFTERSERVICE
+	SET AS_TITLE=#{asTitle}, AS_CONTENT=#{asContent}, AS_DATE=SYSDATE
+	WHERE AS_NO=#{asNo}
+</update>
+
+<delete id="deleteAfterService" parameterType="kr.or.anyapart.afterservice.vo.AfterServiceVO">
+	DELETE AFTERSERVICE
+	WHERE AS_NO=#{asNo}
+</delete>
+
+<update id="resultAfterService" parameterType="kr.or.anyapart.afterservice.vo.AfterServiceVO">
+	UPDATE AFTERSERVICE
+	SET AS_STATUS=#{asStatus}
+	WHERE AS_NO = #{asNo}
+</update>
+
+<update id="afterServiceResultUpdate" parameterType="kr.or.anyapart.afterservice.vo.AfterServiceVO">
+	UPDATE AFTERSERVICE
+	SET AS_COMMENT = #{asComment}
+		, AS_SCHEDULE = #{asSchedule}
+		, AS_EMPLOYEE = #{asEmployee}
+		, AS_STATUS = 'ASDONE'
+	WHERE AS_NO = #{asNo}
+</update>
+
+<select id="selectMember" parameterType="String" resultType="kr.or.anyapart.vo.MemberVO">
+	SELECT 
+		MEM_ID
+		,MEM_PASS
+	FROM MEMBER
+	WHERE MEM_PASS=#{memPass}	
+</select>
+
+<insert id="insertAsSchedule" parameterType="kr.or.anyapart.vo.ScheduleVO">
+	<selectKey order="BEFORE" keyProperty="schdNo" resultType="int">
+		SELECT NVL(MAX(SCHD_NO),0)+1
+		FROM SCHEDULE
+	</selectKey>
+	INSERT INTO schedule (
+	    SCHD_NO,
+	    SCHD_TYPE,
+	    SCHD_TITLE,
+	    SCHD_CONTENT,
+	    SCHD_START,
+	    SCHD_END,
+	    APT_CODE,
+	    APPLY_NO
+	) VALUES (
+	    #{schdNo, jdbcType=NUMERIC}, 
+	    #{schdType}, 
+	    #{schdTitle}, 
+	    #{schdContent}, 
+	    #{schdStart}, 
+	    #{schdEnd},
+	    #{aptCode},
+	    #{applyNo}
+	)
+</insert>
+
+<delete id="deleteCalendar" parameterType="kr.or.anyapart.vo.ScheduleVO">
+	DELETE SCHEDULE
+	WHERE SCHD_NO = #{schdNo}
+</delete>
+
+<update id="deleteAsResult" parameterType="kr.or.anyapart.afterservice.vo.AfterServiceVO">
+	UPDATE AFTERSERVICE
+	SET AS_COMMENT = NULL
+		, AS_SCHEDULE = NULL
+		, AS_EMPLOYEE = NULL
+		, AS_STATUS = 'ASING'
+	WHERE AS_NO = #{asNo}
+</update>
+</mapper>

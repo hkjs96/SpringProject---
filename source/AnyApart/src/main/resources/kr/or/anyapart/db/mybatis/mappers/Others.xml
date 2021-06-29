@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.anyapart.document.dao.IOthersDAO">
+
+<select id="selectDongList" parameterType="kr.or.anyapart.vo.MemberVO" resultType="kr.or.anyapart.apart.vo.HouseVO">
+	SELECT DISTINCT DONG
+	FROM HOUSE
+	WHERE APT_CODE=#{aptCode}
+</select>
+
+<select id="selectHoList" parameterType="kr.or.anyapart.apart.vo.HouseVO" resultType="kr.or.anyapart.apart.vo.HouseVO">
+	SELECT DISTINCT HO
+	FROM HOUSE
+	WHERE APT_CODE=#{aptCode}
+	AND DONG = #{dong}
+	ORDER BY HO
+</select>
+
+<select id="selectResidentList" parameterType="kr.or.anyapart.vo.MemberVO" resultType="kr.or.anyapart.resident.vo.ResidentVO">
+	SELECT DISTINCT MEM_ID
+	FROM RESIDENT A LEFT OUTER JOIN HOUSE B ON (A.HOUSE_CODE=B.HOUSE_CODE)
+	WHERE APT_CODE=#{aptCode}
+	AND RES_MOVEOUT IS NULL
+	ORDER BY MEM_ID
+</select>
+</mapper>

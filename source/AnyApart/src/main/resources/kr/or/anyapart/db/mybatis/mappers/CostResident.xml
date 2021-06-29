@@ -1,0 +1,320 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.anyapart.maintenancecost.dao.CostResidentDAO">
+
+<select id="seleteExpenses" parameterType="kr.or.anyapart.maintenancecost.vo.CostVO" resultType="kr.or.anyapart.maintenancecost.vo.CostVO">
+	
+	SELECT
+	    COST_NO,
+	    MEM_ID,
+	    TO_CHAR(COST_DUEDATE, 'YYYY-MM-DD')COST_DUEDATE,
+	    COST_YEAR,
+	    COST_MONTH,
+	    COST_COMMON,
+	    COST_CLEANING,
+	    COST_SECURITY,
+	    COST_DISINFECT,
+	    COST_ELEVATOR,
+	    COST_PARK,
+	    COST_COMM_HEAT,
+	    COST_INDV_HEAT,
+	    COST_COMM_HOTWATER,
+	    COST_INDV_HOTWATER,
+	    COST_COMM_ELEC,
+	    COST_INDV_ELEC,
+	    COST_COMM_WATER,
+	    COST_INDV_WATER,
+	    COST_AS,
+	    COST_LAS,
+	    COST_COUNCIL,
+        TO_DATE(COST_DUEDATE) - TO_DATE(TO_CHAR(SYSDATE, 'YYYYMMDD')) AS COUNT
+	FROM
+	    MAINTENANCECOST
+	WHERE MEM_ID = #{memId} AND COST_NO = #{costNo}
+	
+</select>
+
+<select id="unpaidYN" parameterType="kr.or.anyapart.maintenancecost.vo.CostVO" resultType="String">
+	SELECT
+	    NVL2(receipt.receipt_yn,'Y','N') AS RECEIPT_YN
+	 
+	FROM
+	    MAINTENANCECOST
+	LEFT JOIN receipt ON  MAINTENANCECOST.COST_NO =receipt.COST_NO 
+	WHERE MAINTENANCECOST.COST_NO = #{costNo}
+</select>
+
+<select id="seleteCostYear" parameterType="kr.or.anyapart.maintenancecost.vo.CostVO" resultType="kr.or.anyapart.maintenancecost.vo.CostVO">
+
+SELECT A.*, ROWNUM RNUM
+        FROM(
+            SELECT
+                COST_YEAR,
+                COST_MONTH,
+                COST_NO,
+                TO_CHAR(COST_DUEDATE, 'YYYY-MM-DD')COST_DUEDATE
+            FROM MAINTENANCECOST
+            WHERE mem_id = #{memId}
+            ORDER BY COST_DUEDATE DESC
+    )A
+</select>
+
+<select id="costAvg" parameterType="kr.or.anyapart.maintenancecost.vo.CostVO" resultType="double">
+    SELECT
+			ROUND(AVG(
+			COST_TOTAL),2) AS COST_AVG
+			FROM V_MAINTENANCECOST
+	WHERE COST_DUEDATE=#{costDuedate}
+	AND MEM_ID LIKE '%'||#{apartCode}||'%'
+</select>
+
+<select id="sameAreaAvg" parameterType="kr.or.anyapart.maintenancecost.vo.CostVO" resultType="double">
+	SELECT
+  	 ROUND(AVG(COST_COMMON+ COST_CLEANING+ COST_SECURITY+ COST_DISINFECT+
+	    COST_ELEVATOR+ COST_PARK+ COST_COMM_HEAT+ COST_INDV_HEAT+ COST_COMM_HOTWATER+
+	    COST_INDV_HOTWATER+ COST_COMM_ELEC+ COST_INDV_ELEC+ COST_COMM_WATER+ COST_INDV_WATER+
+	    COST_AS+ COST_LAS+ COST_COUNCIL),2) AS CODE
+    FROM MAINTENANCECOST A
+        LEFT JOIN RESIDENT B ON A.MEM_ID = B.MEM_ID
+        LEFT JOIN HOUSE c ON b.HOUSE_CODE = c.HOUSE_CODE
+   	 WHERE HOUSE_AREA IN (SELECT
+				   				 house_area
+							FROM
+				   					house
+								WHERE APT_CODE =#{apartCode}
+								AND HOUSE_CODE IN(SELECT
+						                HOUSE_CODE
+						                FROM
+						                RESIDENT    
+						                where MEM_ID = #{memId}))
+        AND COST_DUEDATE = #{costDuedate}
+        AND C.APT_CODE = #{apartCode}
+
+</select>
+
+
+<select id="sameEngAreaAvg" parameterType="kr.or.anyapart.maintenancecost.vo.CostVO" resultType="double">
+	SELECT
+  	  ROUND(AVG(COST_COMM_HEAT+ COST_INDV_HEAT+ COST_COMM_HOTWATER+
+	    COST_INDV_HOTWATER+ COST_COMM_ELEC+ COST_INDV_ELEC+ COST_COMM_WATER+ COST_INDV_WATER+
+	    COST_AS+ COST_LAS+ COST_COUNCIL),2) AS CODE
+    FROM MAINTENANCECOST A
+        LEFT JOIN RESIDENT B ON A.MEM_ID = B.MEM_ID
+        LEFT JOIN HOUSE c ON b.HOUSE_CODE = c.HOUSE_CODE
+   	 WHERE HOUSE_AREA IN (SELECT
+				   				 house_area
+							FROM
+				   					house
+								WHERE APT_CODE =#{apartCode}
+								AND HOUSE_CODE IN(SELECT
+						                HOUSE_CODE
+						                FROM
+						                RESIDENT    
+						                where MEM_ID = #{memId}))
+        AND COST_DUEDATE = #{costDuedate}
+        AND C.APT_CODE = #{apartCode}
+</select>
+
+<select id="seleteCostTypeList" parameterType="kr.or.anyapart.maintenancecost.vo.CostVO"  resultType="kr.or.anyapart.maintenancecost.vo.CostVO">
+	SELECT A.*, ROWNUM RNUM
+        FROM(
+            SELECT
+                COST_YEAR,
+                COST_MONTH,
+                COST_NO,
+                TO_CHAR(COST_DUEDATE, 'YYYY-MM-DD')COST_DUEDATE,
+                COST_${costType} AS COST_TYPE
+            FROM MAINTENANCECOST
+            WHERE mem_id = #{memId}
+            ORDER BY COST_DUEDATE DESC
+    )A
+    <![CDATA[
+    WHERE COST_DUEDATE <= #{costDuedate} 
+    	  AND COST_DUEDATE >= ( SELECT 
+            ADD_MONTHS(TO_DATE(#{costDuedate},'YYYY-MM-DD'),-12)
+            FROM DUAL
+            )
+     ]]>
+</select>
+
+
+<select id="seleteCostSameAreaList" parameterType="kr.or.anyapart.maintenancecost.vo.CostVO" resultType="kr.or.anyapart.maintenancecost.vo.CostVO">
+SELECT
+  	 ROUND(AVG(COST_${costType}),2) AS SAME_AREA_AVG
+     ,TO_CHAR(COST_DUEDATE, 'YYYY-MM-DD')COST_DUEDATE
+    FROM MAINTENANCECOST A
+        LEFT JOIN RESIDENT B ON A.MEM_ID = B.MEM_ID
+        LEFT JOIN HOUSE c ON b.HOUSE_CODE = c.HOUSE_CODE
+   	 WHERE HOUSE_AREA IN (SELECT
+				   				 house_area
+							FROM
+				   					house
+								WHERE APT_CODE =#{apartCode}
+								AND HOUSE_CODE IN(SELECT
+						                HOUSE_CODE
+						                FROM
+						                RESIDENT    
+						                where MEM_ID = #{memId}))
+		              <![CDATA[
+		  			   AND COST_DUEDATE <= #{costDuedate} 
+		    	 	   AND COST_DUEDATE >= ( SELECT 
+		         	   ADD_MONTHS(TO_DATE(#{costDuedate},'YYYY-MM-DD'),-12)
+		               FROM DUAL
+		            )
+		     ]]>
+            AND C.APT_CODE = #{apartCode}
+            GROUP BY COST_DUEDATE
+            ORDER BY COST_DUEDATE DESC
+
+</select>
+
+
+<select id="seleteUserResidence" parameterType="kr.or.anyapart.vo.MemberVO" resultType="kr.or.anyapart.resident.vo.ResidentVO">
+	SELECT
+	    MEM_ID,
+	    HOUSE.DONG,
+	     LTRIM(HOUSE.HO,'0') AS HO,
+	    RES_NAME,
+	    RES_HP
+	FROM RESIDENT
+	LEFT JOIN HOUSE ON RESIDENT.HOUSE_CODE = HOUSE.HOUSE_CODE
+	WHERE RESIDENT.MEM_ID=#{memId}
+</select>
+<select id="apart" parameterType="kr.or.anyapart.vo.MemberVO" resultType="kr.or.anyapart.apart.vo.ApartVO">
+	SELECT
+	    apt_code,
+	    apt_name,
+	    apt_zip,
+	    apt_add1,
+	    apt_add2,
+	    apt_cnt,
+	    apt_img,
+	    apt_delete,
+	    apt_heat,
+	    apt_tel,
+	    apt_head,
+	    apt_start,
+	    apt_end,
+	    apt_area
+	FROM
+	    apart
+	WHERE APT_CODE = #{aptCode}
+</select>
+
+
+<select id="costSum" parameterType="kr.or.anyapart.maintenancecost.vo.CostVO" resultType="kr.or.anyapart.maintenancecost.vo.CostVO">
+
+	SELECT
+	COST_COMMON+ COST_CLEANING+ COST_SECURITY+ COST_DISINFECT+
+		    COST_ELEVATOR+ COST_PARK+ COST_COMM_HEAT+ COST_INDV_HEAT+ COST_COMM_HOTWATER+
+		    COST_INDV_HOTWATER+ COST_COMM_ELEC+ COST_INDV_ELEC+ COST_COMM_WATER+ COST_INDV_WATER+
+		    COST_AS+ COST_LAS+ COST_COUNCIL AS COST_TOTAL,
+		    COST_YEAR,
+        	COST_MONTH,
+        	TO_CHAR(COST_DUEDATE,'YYYY-MM-DD')COST_DUEDATE,
+        	MEM_ID,
+        	COST_NO
+	FROM
+	    MAINTENANCECOST
+	WHERE MEM_ID=#{memId}
+	AND COST_YEAR =#{costYear}
+	AND COST_MONTH = #{costMonth}
+</select>
+
+
+<select id="unpaidMaintenancecost" parameterType="kr.or.anyapart.maintenancecost.vo.CostVO" resultType="kr.or.anyapart.maintenancecost.vo.CostVO">
+
+SELECT
+    mem_id,
+    NVL2(receipt.receipt_yn,'Y','N') AS RECEIPT_YN,
+    COST_COMMON+ COST_CLEANING+ COST_SECURITY+ COST_DISINFECT+
+		    COST_ELEVATOR+ COST_PARK+ COST_COMM_HEAT+ COST_INDV_HEAT+ COST_COMM_HOTWATER+
+		    COST_INDV_HOTWATER+ COST_COMM_ELEC+ COST_INDV_ELEC+ COST_COMM_WATER+ COST_INDV_WATER+
+		    COST_AS+ COST_LAS+ COST_COUNCIL AS COST_TOTAL,
+		    COST_YEAR,
+        	COST_MONTH,
+            MAINTENANCECOST.COST_NO AS COST_NO,
+            TO_CHAR(COST_DUEDATE,'YYYY-MM-DD')COST_DUEDATE,
+            TO_DATE(TO_CHAR(SYSDATE, 'YYYYMMDD')) - COST_DUEDATE AS COUNT,
+            TO_DATE(TO_CHAR(SYSDATE, 'YYYYMMDD')) - TO_DATE(#{costDuedate}) AS NEWCOUNT
+FROM
+    MAINTENANCECOST
+LEFT JOIN receipt ON  MAINTENANCECOST.COST_NO =receipt.COST_NO 
+WHERE MEM_ID = #{memId}
+AND COST_DUEDATE <![CDATA[ < #{costDuedate}]]>
+
+
+</select>
+
+ 
+<select id="allCostPay" parameterType="kr.or.anyapart.maintenancecost.vo.CostVO" resultType="kr.or.anyapart.maintenancecost.vo.CostVO">
+	SELECT
+    mem_id,
+    NVL2(receipt.receipt_yn,'Y','N') AS RECEIPT_YN,
+    COST_COMMON+ COST_CLEANING+ COST_SECURITY+ COST_DISINFECT+
+		    COST_ELEVATOR+ COST_PARK+ COST_COMM_HEAT+ COST_INDV_HEAT+ COST_COMM_HOTWATER+
+		    COST_INDV_HOTWATER+ COST_COMM_ELEC+ COST_INDV_ELEC+ COST_COMM_WATER+ COST_INDV_WATER+
+		    COST_AS+ COST_LAS+ COST_COUNCIL AS COST_TOTAL,
+		    COST_YEAR,
+        	COST_MONTH,
+            MAINTENANCECOST.COST_NO,
+            COST_DUEDATE,
+            TO_DATE(TO_CHAR(SYSDATE, 'YYYYMMDD')) - COST_DUEDATE AS COUNT
+FROM
+    MAINTENANCECOST
+LEFT JOIN receipt ON  MAINTENANCECOST.COST_NO =receipt.COST_NO 
+WHERE MEM_ID = #{memId}
+AND COST_DUEDATE <![CDATA[ <= #{costDuedate}]]>
+
+
+</select>
+
+
+
+<insert id="insertReceipt" parameterType="kr.or.anyapart.maintenancecost.vo.CostVO">
+	<selectKey order="BEFORE" keyProperty="receiptNo" resultType="int">
+			SELECT MAX(RECEIPT_NO)+1
+				FROM receipt
+	</selectKey>
+	INSERT INTO RECEIPT (
+	    RECEIPT_NO,
+	    COST_NO,
+	    RECEIPT_METHOD,
+	    RECEIPT_COST,
+	    RECEIPT_DATE,
+	    RECEIPT_YN
+	) VALUES (
+	    #{receiptNo,jdbcType=NUMERIC},
+	    #{costNo,jdbcType=VARCHAR},
+	    'KAKAO',
+	    #{costTotal,jdbcType=NUMERIC},
+	    SYSDATE,
+	    'Y'
+	)
+</insert>
+
+
+<select id="receiptList" parameterType="kr.or.anyapart.vo.MemberVO" resultType="kr.or.anyapart.maintenancecost.vo.CostVO">
+	SELECT
+	    mem_id,
+	    NVL2(receipt.receipt_yn,'결제완료','결제 미완료') AS RECEIPT_YN,
+	    COST_COMMON+ COST_CLEANING+ COST_SECURITY+ COST_DISINFECT+
+			    COST_ELEVATOR+ COST_PARK+ COST_COMM_HEAT+ COST_INDV_HEAT+ COST_COMM_HOTWATER+
+			    COST_INDV_HOTWATER+ COST_COMM_ELEC+ COST_INDV_ELEC+ COST_COMM_WATER+ COST_INDV_WATER+
+			    COST_AS+ COST_LAS+ COST_COUNCIL AS COST_TOTAL,
+			    COST_YEAR,
+	        	COST_MONTH,
+	            MAINTENANCECOST.COST_NO,
+	            TO_CHAR(COST_DUEDATE,'YYYY-MM-DD') AS COST_DUEDATE,
+	            TO_DATE(TO_CHAR(SYSDATE, 'YYYYMMDD')) - COST_DUEDATE AS COUNT,
+                NVL(TO_CHAR(RECEIPT.RECEIPT_DATE),'-') AS RECEIPT_DATE,
+                NVL(RECEIPT.RECEIPT_METHOD,'-') AS RECEIPT_METHOD
+	FROM
+	    MAINTENANCECOST
+	LEFT JOIN RECEIPT ON  MAINTENANCECOST.COST_NO =RECEIPT.COST_NO 
+	WHERE MEM_ID = #{memId}
+	ORDER BY COST_DUEDATE DESC
+</select>
+
+
+</mapper>

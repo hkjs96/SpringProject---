@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--  [[개정이력(Modification Information)]]       -->
+<!--  수정일       		 수정자 	    수정내용               -->
+<!--  ==========   ======    ==============        -->
+<!--  2021. 2. 10.   박  찬    	  최초등록              -->
+<!--  Copyright (c) 2021 by DDIT All right reserved -->
+<workbook>
+    <worksheet name="Sheet1">
+        <section startRow="0" endRow="31"/> <!-- 데이터 들어가지 않는 셀 -->
+        <loop startRow="32" endRow="32" items="contractList" var="contract" varType="kr.or.anyapart.servicecompany.vo.ServiceVO">
+            <section startRow="32" endRow="32">
+                <mapping row="32" col="0">contract.svcName</mapping>
+                <mapping row="32" col="1">contract.svcCode</mapping>
+                <mapping row="32" col="2">contract.svcZip</mapping>
+                <mapping row="32" col="3">contract.svcAdd1</mapping>
+                <mapping row="32" col="4">contract.svcAdd2</mapping>
+                <mapping row="32" col="5">contract.svcTel</mapping>
+                <mapping row="32" col="6">contract.svcHead</mapping>
+                <mapping row="32" col="7">contract.svcHeadTel</mapping>
+                <mapping row="32" col="8">contract.svcBank</mapping>
+                <mapping row="32" col="9">contract.svcAcct</mapping>
+                <mapping row="32" col="10">contract.svcDeposit</mapping>
+                <mapping row="32" col="11">contract.svcStart</mapping>
+                <mapping row="32" col="12">contract.svcEnd</mapping>
+            </section>
+            <loopbreakcondition>
+                <rowcheck offset="0"/>
+            </loopbreakcondition>
+        </loop>
+    </worksheet>
+</workbook>

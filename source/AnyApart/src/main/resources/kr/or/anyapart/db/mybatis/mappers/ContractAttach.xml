@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.anyapart.servicecompany.dao.AttachServiceDAO">
+
+<insert id="insertAttaches" parameterType="kr.or.anyapart.servicecompany.vo.ServiceVO">
+		<selectKey order="BEFORE" keyProperty="startAttNo" resultType="int">
+			 SELECT NVL(MAX(SVC_FILE_NO), 0)+1
+				FROM SERVICEFILE
+    			WHERE SVC_ID =#{svcId}
+		</selectKey>
+		INSERT ALL
+		<foreach collection="attachList" item="svcAttach" index ="idx">
+			INTO SERVICEFILE (
+			   SVC_FILE_NO, 
+			   SVC_FILENAME, 
+			   SVC_MIME, 
+			   SVC_ID, 
+			   SVC_FILESIZE,
+			   SVC_FILE,
+			   SVC_FANCY
+			) VALUES (
+				#{startAttNo,jdbcType=NUMERIC}+#{idx},
+				#{svcAttach.svcFilename,jdbcType=VARCHAR},
+			    #{svcAttach.svcMime,jdbcType=VARCHAR},    
+			    #{svcId,jdbcType=VARCHAR},
+			    #{svcAttach.svcFilesize,jdbcType=NUMERIC},    
+			    #{svcAttach.svcFile,jdbcType=VARCHAR},
+			    #{svcAttach.svcFancy,jdbcType=VARCHAR}   	    
+			)
+		</foreach>
+		SELECT * FROM DUAL
+	</insert>
+	
+	
+	<select id="selectAttach" parameterType="kr.or.anyapart.servicecompany.vo.ServiceAttachVO" resultType="kr.or.anyapart.servicecompany.vo.ServiceAttachVO">
+			SELECT
+			    SVC_FILE_NO,
+			    SVC_ID,
+			    SVC_FILENAME,
+			    SVC_FILE,
+			    SVC_DATE,
+			    SVC_MIME,
+			    SVC_FILESIZE,
+			    SVC_FANCY
+			FROM
+			    SERVICEFILE
+			WHERE SVC_FILE_NO = #{svcFileNo}  AND SVC_ID= #{svcId}
+</select>
+
+<delete id="deleteAttatches" parameterType="kr.or.anyapart.servicecompany.vo.ServiceVO">
+		DELETE FROM SERVICEFILE
+		<where>
+			<if test="delAttNos!=null and delAttNos.length gt 0">
+				SVC_FILE_NO IN 
+				<foreach collection="delAttNos" item="svcFileNo" open="(" close=")" separator=",">
+					#{svcFileNo}
+				</foreach>	
+			</if>
+			<if test="delAttNos==null or delAttNos.length eq 0">
+				SVC_ID = #{svcId}
+			</if>
+		</where>
+	</delete>
+
+
+</mapper>

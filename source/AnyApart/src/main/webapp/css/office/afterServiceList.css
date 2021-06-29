@@ -1,0 +1,79 @@
+/**
+ * @author 박정민
+ * @since 2021. 2. 10.
+ * @version 1.0
+ * <pre>
+ * [[개정이력(Modification Infomation)]]
+ * 수정일             수정자           수정내용
+ * --------  --------   -----------------------
+ * 2021. 2. 10.       박정민         최초작성
+ * Copyright (c) 2021 by DDIT All right reserved
+ * </pre>
+ */
+@charset "UTF-8";
+
+/* 조회조건 */
+#retrieveTopDiv {
+	margin-top: 30px;
+}
+#listDiv {
+	width: 95%;
+	margin-left: 30px;
+	margin-bottom: 30px;
+}
+/* 상세조회 */
+#viewDiv img {
+	width: 600px;
+	height: 500px;
+}
+#repairView th {
+	text-align: center;
+	background-color: #343A40;
+	color: white;
+}
+#contentDiv {
+	height: 200px;
+}
+#StatusBtnDiv {
+	margin-right: 30%;
+	margin: 10px;
+}
+#StatusBtnDiv button{
+	margin-right: 10px;
+}
+#cancleBtn{
+	margin-right: 10px;
+}
+#resultInputTag{
+	width: 730px;
+}
+#tbodyResult input{
+	border : 1px solid #DEE2E6;
+}
+#message{
+	width: 300px;
+	margin-left: 700px; 
+}
+#insertSchdBtn{
+	margin-top: 10px;
+}
+#explainP{
+	font-weight: normal;
+	font-size: 0.8em;
+}
+#uBtn{
+	margin-left: 88%;
+	margin-right: 10px;
+}
+#resultModal th{
+	background-color: #E9ECEF;
+	text-align: center;
+}
+#resultModal{
+	width: 60%;
+	margin-left: 20%;
+	margin-top: 50px;
+}
+.resultTh{
+	width: 100px;
+}

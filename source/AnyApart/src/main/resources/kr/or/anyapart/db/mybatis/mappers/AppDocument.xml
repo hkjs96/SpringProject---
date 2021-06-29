@@ -1,0 +1,409 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.anyapart.approval.appdocument.dao.AppDocumentDAO">
+	<sql id="sendingSearchFrag">
+	WHERE DRAFT.MEM_ID=#{searchVO.searchWord} 
+	  AND DRAFT.DRAFT_DELETE = 'N'
+		<if test="searchVO!=null">
+			<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchVO.searchAptCode)">
+				 AND INSTR(DRAFT.MEM_ID, #{searchVO.searchAptCode}) > 0
+			</if>
+			<if test="searchDetail!=null">
+					<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.searchStart)
+					          and @org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.searchEnd)"
+					>
+						AND DRAFT_DATE BETWEEN #{searchDetail.searchStart} AND #{searchDetail.searchEnd}
+					</if>
+					<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.taskCode)">
+						AND INSTR(TASK_CODE, #{searchDetail.taskCode}) > 0
+					</if>
+					<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.draftTitle)">
+						AND INSTR(DRAFT_TITLE, #{searchDetail.draftTitle}) > 0
+					</if>
+					<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.draftContent)">
+						AND INSTR(DRAFT_CONTENT, #{searchDetail.draftContent}) > 0
+					</if>
+					<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.memId)">
+						AND INSTR(MEM_ID, #{searchDetail.memId}) > 0
+					</if>
+				</if>
+		</if>	
+	</sql>
+	
+	
+		<sql id="receptionSearchFrag">
+			WHERE DRAFT.APPLINE_ID=LINEDE.APPLINE_ID
+               AND APPROVAL.APPLINEDE_ID>=LINEDE.APPLINEDE_ID
+                AND DRAFT.DRAFT_DELETE = 'N'
+		<if test="searchVO!=null">
+			<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchVO.searchAptCode)">
+				 AND INSTR(DRAFT.MEM_ID, #{searchVO.searchAptCode}) > 0
+			</if>
+			<if test="searchDetail!=null">
+					<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.searchStart)
+					          and @org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.searchEnd)"
+					>
+						AND DRAFT_DATE BETWEEN #{searchDetail.searchStart} AND #{searchDetail.searchEnd}
+					</if>
+					<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.taskCode)">
+						AND INSTR(TASK_CODE, #{searchDetail.taskCode}) > 0
+					</if>
+					<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.draftTitle)">
+						AND INSTR(DRAFT_TITLE, #{searchDetail.draftTitle}) > 0
+					</if>
+					<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.draftContent)">
+						AND INSTR(DRAFT_CONTENT, #{searchDetail.draftContent}) > 0
+					</if>
+					<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.memId)">
+						AND INSTR(MEM_ID, #{searchDetail.memId}) > 0
+					</if>
+				</if>
+			</if>	
+		</sql>
+	
+	<sql id="wholeSearchFrag">
+		WHERE DRAFT.DRAFT_DELETE = 'N'
+		  AND COMMONCODE.CODE_ID = 'APPROVED'
+			<if test="searchVO!=null">
+				<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchVO.searchAptCode)">
+					 AND INSTR(DRAFT.MEM_ID, #{searchVO.searchAptCode}) > 0
+				</if>
+				<if test="searchDetail!=null">
+					<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.searchStart)
+					          and @org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.searchEnd)"
+					>
+						AND DRAFT_DATE BETWEEN #{searchDetail.searchStart} AND #{searchDetail.searchEnd}
+					</if>
+					<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.taskCode)">
+						AND INSTR(TASK_CODE, #{searchDetail.taskCode}) > 0
+					</if>
+					<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.draftTitle)">
+						AND INSTR(DRAFT_TITLE, #{searchDetail.draftTitle}) > 0
+					</if>
+					<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.draftContent)">
+						AND INSTR(DRAFT_CONTENT, #{searchDetail.draftContent}) > 0
+					</if>
+					<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.memId)">
+						AND INSTR(MEM_ID, #{searchDetail.memId}) > 0
+					</if>
+				 </if>
+			 </if>	
+	</sql>
+
+	
+	<resultMap type="kr.or.anyapart.approval.vo.DraftVO" id="draftMap" autoMapping="true">
+		<id property="draftId" column="DRAID"/>
+		<association property="approval" javaType="kr.or.anyapart.approval.vo.ApprovalVO" autoMapping="true"></association>
+		<collection property="draftAttList" ofType="kr.or.anyapart.approval.vo.DraftAttVO" autoMapping="true">
+			<id property="attSn" column="ATT_SN"/>
+		</collection>
+	</resultMap>
+
+	<select id="selectSendingCount" parameterType="kr.or.anyapart.vo.PagingVO" resultType="int">
+		SELECT COUNT(*)
+		FROM DRAFT 
+		<include refid="sendingSearchFrag" />
+	</select>
+
+	<select id="selectSendingList" parameterType="kr.or.anyapart.vo.PagingVO" resultMap="draftMap">
+		SELECT B.*
+		  FROM (
+			SELECT A.*, ROWNUM RNUM
+			  FROM (
+				SELECT DRAFT.DRAFT_ID DRAID
+					 , DRAFT_TITLE
+					 , COMMONCODE.CODE_NAME "APP_STATUS"
+					 , EMP_NAME "DRAFT_WRITER"
+					 , TO_CHAR(DRAFT_DATE, 'YYYY-MM-DD') DRAFT_DATE
+				  FROM DRAFT  INNER JOIN EMPLOYEE  ON (DRAFT.MEM_ID=EMPLOYEE.MEM_ID)
+				               LEFT JOIN APPROVAL  ON (DRAFT.DRAFT_ID=APPROVAL.DRAFT_ID)
+                               LEFT JOIN COMMONCODE ON (APPROVAL.APP_STATUS=COMMONCODE.CODE_ID)
+                 <include refid="sendingSearchFrag" />
+				  ORDER BY DRAFT.DRAFT_ID DESC
+			) A
+		) B
+		<![CDATA[
+			WHERE RNUM >= #{startRow} AND RNUM <= #{endRow}
+		]]>
+	</select>
+	
+	<select id="selectDraftInfo" parameterType="kr.or.anyapart.approval.vo.DraftVO" resultMap="draftMap">
+		SELECT
+		    A.DRAFT_ID DRAID
+		      ,E.EMP_NAME "MEM_ID"
+			  ,C.CODE_NAME TASK_CODE
+			  ,E.MEM_ID "DRAFT_WRITER"
+			  ,APPLINEDE_ID
+			  ,TO_CHAR(DRAFT_DATE, 'YYYY-MM-DD HH:MI') DRAFT_DATE
+			  ,DRAFT_TITLE
+			  ,DRAFT_CONTENT
+			  ,D.BANK_NAME||' ' || ACCT_NO || ' ' || ACCT_COMENT "DRAFT_ACCT"
+			  ,G.CODE_NAME "APP_STATUS"
+			  ,APP_NOWEMP
+			  ,TO_CHAR(APP_DATE, 'YYYY-MM-DD HH:MI') APP_DATE
+			   ,ATT_SN
+			   ,ATT_SAVENAME
+			   ,ATT_FILESIZE
+			   ,ATT_FILENAME
+			   ,ATT_MIME
+			   ,ATT_FANCY
+			FROM
+			    DRAFT A LEFT OUTER JOIN ACCOUNT B ON (A.DRAFT_ACCT=B.ACCT_ID)
+			            LEFT OUTER JOIN COMMONCODE C ON(A.TASK_CODE=C.CODE_ID)
+			            LEFT OUTER JOIN BANK D ON(B.BANK_CODE=D.BANK_CODE)
+			            LEFT OUTER JOIN EMPLOYEE E ON(A.MEM_ID=E.MEM_ID)
+			            LEFT OUTER JOIN APPROVAL F ON(A.DRAFT_ID=F.DRAFT_ID)
+			            LEFT OUTER JOIN COMMONCODE G ON(F.APP_STATUS=G.CODE_ID)
+			            LEFT OUTER JOIN DRAFTATT H ON(A.DRAFT_ID=H.DRAFT_ID)
+			WHERE A.DRAFT_ID=#{draftId}
+	</select>
+	
+	<select id="selectReceptionCount" parameterType="kr.or.anyapart.vo.PagingVO" resultType="int">
+		WITH LINEDE AS(
+				SELECT APPLINE_ID
+				,APPLINEDE_ID
+				FROM LINEDETAIL 
+				WHERE MEM_ID=#{searchVO.searchWord}
+		)
+		
+		SELECT COUNT(*)
+			FROM DRAFT LEFT JOIN APPROVAL  ON (DRAFT.DRAFT_ID=APPROVAL.DRAFT_ID)
+			 		   LEFT JOIN APPROVALLINE ON (DRAFT.APPLINE_ID=APPROVALLINE.APPLINE_ID)
+	                   LEFT JOIN LINEDE ON (LINEDE.APPLINE_ID = APPROVALLINE.APPLINE_ID)
+		<include refid="receptionSearchFrag" />
+	</select>
+
+	<select id="selectReceptionList" parameterType="kr.or.anyapart.vo.PagingVO" resultMap="draftMap">
+		WITH LINEDE AS(
+				SELECT APPLINE_ID
+				,APPLINEDE_ID
+				FROM LINEDETAIL 
+				WHERE MEM_ID=#{searchVO.searchWord}
+			)
+	
+	    SELECT B.*
+		  FROM (
+			SELECT A.*, ROWNUM RNUM
+			  FROM (
+				SELECT DRAFT.DRAFT_ID DRAID
+					 , DRAFT_TITLE
+					 , COMMONCODE.CODE_NAME "APP_STATUS"
+					 , EMP_NAME "DRAFT_WRITER"
+					 , TO_CHAR(DRAFT_DATE, 'YYYY-MM-DD') DRAFT_DATE
+				  FROM DRAFT  INNER JOIN EMPLOYEE  ON (DRAFT.MEM_ID=EMPLOYEE.MEM_ID)
+				               LEFT JOIN APPROVAL  ON (DRAFT.DRAFT_ID=APPROVAL.DRAFT_ID)
+	                              LEFT JOIN COMMONCODE ON (APPROVAL.APP_STATUS=COMMONCODE.CODE_ID)
+	                              LEFT JOIN APPROVALLINE ON (DRAFT.APPLINE_ID=APPROVALLINE.APPLINE_ID)
+	                              LEFT JOIN LINEDE ON (LINEDE.APPLINE_ID = APPROVALLINE.APPLINE_ID)
+	                               <include refid="receptionSearchFrag" />
+				  ORDER BY DRAFT.DRAFT_ID DESC
+			) A
+		) B
+		<![CDATA[
+			WHERE RNUM >= #{startRow} AND RNUM <= #{endRow} 
+ 		]]> 
+ 		
+	</select>
+	
+	<select id="selectWholeAppCount" parameterType="kr.or.anyapart.vo.PagingVO" resultType="int">
+		SELECT COUNT(*)
+			FROM DRAFT INNER JOIN EMPLOYEE  ON (DRAFT.MEM_ID=EMPLOYEE.MEM_ID)
+	                    LEFT OUTER JOIN APPROVAL  ON (DRAFT.DRAFT_ID=APPROVAL.DRAFT_ID)
+                        LEFT OUTER JOIN COMMONCODE ON (APPROVAL.APP_STATUS=COMMONCODE.CODE_ID)
+		<include refid="wholeSearchFrag" />
+	</select>
+
+	<select id="selectWholeAppList" parameterType="kr.or.anyapart.vo.PagingVO" resultMap="draftMap">
+	SELECT B.*
+		  FROM (
+			SELECT A.*, ROWNUM RNUM
+			  FROM (
+				SELECT DRAFT.DRAFT_ID DRAID
+					 , DRAFT_TITLE
+					 , COMMONCODE.CODE_NAME "APP_STATUS"
+					 , EMP_NAME "DRAFT_WRITER"
+					 , TO_CHAR(DRAFT_DATE, 'YYYY-MM-DD') DRAFT_DATE
+				  FROM DRAFT  INNER JOIN EMPLOYEE  ON (DRAFT.MEM_ID=EMPLOYEE.MEM_ID)
+				               LEFT OUTER JOIN APPROVAL  ON (DRAFT.DRAFT_ID=APPROVAL.DRAFT_ID)
+                               LEFT OUTER JOIN COMMONCODE ON (APPROVAL.APP_STATUS=COMMONCODE.CODE_ID)
+                 <include refid="wholeSearchFrag" />
+				  ORDER BY DRAFT.DRAFT_ID DESC
+			) A
+		) B
+              
+		<![CDATA[
+			WHERE RNUM >= #{startRow} AND RNUM <= #{endRow} 
+ 		]]> 
+	</select>
+	
+	<select id="selectAppLineId" parameterType="kr.or.anyapart.approval.vo.DraftVO" resultType="int">
+		WITH APP AS(
+			SELECT APPLINEDE_ID
+			FROM APPROVAL
+			WHERE DRAFT_ID=#{draftId}
+		)
+				
+		SELECT APPLINE_ID
+		FROM LINEDETAIL A LEFT OUTER JOIN APP B ON (A.APPLINEDE_ID=B.APPLINEDE_ID)
+		WHERE A.APPLINEDE_ID=B.APPLINEDE_ID
+	</select>
+	
+	<select id="selectLineDatailList" parameterType="int" resultType="kr.or.anyapart.approval.vo.LineDetailVO">
+		SELECT B.CODE_NAME "APP_CODE"
+		       ,APP_ORDER
+		       ,C.EMP_NAME "MEM_ID"
+		       ,APPLINEDE_ID
+		    FROM LINEDETAIL A LEFT OUTER JOIN COMMONCODE B ON(A.APP_CODE=B.CODE_ID)
+		                      LEFT OUTER JOIN EMPLOYEE C ON(A.MEM_ID=C.MEM_ID)
+		    WHERE APPLINE_ID= #{applineId}
+		    ORDER BY APP_ORDER
+	</select>
+	
+	<select id="selectldListForSuccess" parameterType="int" resultType="kr.or.anyapart.approval.vo.LineDetailVO">
+		WITH LINEDE AS(
+	    SELECT APPLINE_ID
+	      FROM LINEDETAIL
+	     WHERE APPLINEDE_ID=#{applineId}
+			)
+
+		SELECT B.CODE_NAME "APP_CODE"
+				       ,APP_ORDER
+				       ,C.MEM_ID 
+				       ,APPLINEDE_ID
+				    FROM LINEDETAIL A LEFT OUTER JOIN COMMONCODE B ON(A.APP_CODE=B.CODE_ID)
+				                      LEFT OUTER JOIN EMPLOYEE C ON(A.MEM_ID=C.MEM_ID)
+		                              LEFT OUTER JOIN LINEDE D ON(A.APPLINE_ID=D.APPLINE_ID)
+				    WHERE A.APPLINE_ID = D.APPLINE_ID
+				    ORDER BY APP_ORDER
+	</select>
+	
+	<update id="updateToFinalSuccess" parameterType="kr.or.anyapart.approval.vo.LineDetailVO">
+		UPDATE approval
+		    SET
+				APPLINEDE_ID = #{applinedeId, jdbcType=NUMERIC}
+				,APP_STATUS = 'APPROVED'
+				,APP_DATE =  SYSDATE
+				,APP_NOWEMP = null
+		WHERE APPLINEDE_ID=#{applinedeId}
+	</update>
+	
+	<update id="updateToNextSuccess" parameterType="kr.or.anyapart.approval.vo.LineDetailVO">
+		UPDATE approval
+		    SET
+				APPLINEDE_ID = #{applinedeId, jdbcType=NUMERIC} + 1
+				,APP_STATUS = 'PROCESSING'
+				,APP_DATE =  null
+				,APP_NOWEMP = #{memId, jdbcType=VARCHAR}
+		WHERE APPLINEDE_ID=#{applinedeId}
+	</update>
+	
+	<update id="approvalReject" parameterType="kr.or.anyapart.approval.vo.ApprovalVO">
+		UPDATE approval
+		    SET 
+				APP_NOWEMP = null
+				,APP_STATUS='REJECTED'
+				,APPLINEDE_ID = #{applinedeId, jdbcType=NUMERIC}
+		WHERE DRAFT_ID=#{draftId}
+	</update>
+	
+	<update id="updateDraft" parameterType="kr.or.anyapart.approval.vo.DraftVO">
+		UPDATE DRAFT
+	       SET
+		        TASK_CODE = #{taskCode, jdbcType=VARCHAR}
+			   , DRAFT_DATE = SYSDATE
+			   , DRAFT_TITLE = #{draftTitle, jdbcType=VARCHAR}
+			   , DRAFT_CONTENT = #{draftContent, jdbcType=CLOB}
+			   , DRAFT_ACCT =  #{draftAcct, jdbcType=VARCHAR}
+	     WHERE DRAFT_ID=#{draftId}		   
+	</update>
+	
+	<update id="updateApproval" parameterType="kr.or.anyapart.approval.vo.ApprovalVO">
+		UPDATE APPROVAL
+		    SET
+		     APPLINEDE_ID =  #{applinedeId, jdbcType=NUMERIC}
+		    ,APP_STATUS = 'WAITING'
+		    ,APP_DATE =  null
+		    ,APP_NOWEMP = #{appNowemp, jdbcType=VARCHAR}
+		 WHERE DRAFT_ID=#{draftId}
+	</update>
+	
+	<update id="updateLineDetail" parameterType="kr.or.anyapart.approval.vo.LineDetailVO">
+		UPDATE LINEDETAIL
+	       SET
+			   APP_CODE = #{appCode, jdbcType=VARCHAR}
+		       ,MEM_ID = #{lineMemId, jdbcType=VARCHAR}
+		   	   ,APP_YN = 'N'
+	     WHERE APPLINEDE_ID =  #{applinedeId}
+	</update>
+	
+	<delete id="deleteLineDetail" parameterType="kr.or.anyapart.approval.vo.LineDetailVO">
+		DELETE 
+		  FROM LINEDETAIL
+		WHERE APPLINEDE_ID =  #{applinedeId}
+	</delete>
+	
+	<select id="selectMaxLinedeld" resultType="int">
+		SELECT NVL(MAX(APPLINEDE_ID), 0)+1 APP_LINEDEID
+		  FROM LINEDETAIL
+	</select>
+	
+	<insert id="addLineDetail">
+		INSERT INTO LINEDETAIL (
+				   APPLINEDE_ID
+					,APPLINE_ID
+					,APP_CODE
+					,APP_ORDER
+					,MEM_ID
+					,APP_YN
+				) VALUES (
+				 #{applinedeId, jdbcType=NUMERIC}
+				, #{applineId, jdbcType=NUMERIC} 
+				, #{appCode, jdbcType=VARCHAR} 
+				, #{appOrder, jdbcType=NUMERIC} 
+				, #{lineMemId, jdbcType=VARCHAR}  
+				, 'N'
+				)
+	</insert>
+	
+	<update id="draftCancel" parameterType="kr.or.anyapart.approval.vo.ApprovalVO">
+		UPDATE APPROVAL
+		    SET
+		    APP_STATUS = 'CANCELED'
+		    ,APP_NOWEMP = null
+		   WHERE DRAFT_ID=#{draftId}
+	</update>
+	
+	<update id="draftDelete" parameterType="kr.or.anyapart.approval.vo.DraftVO">
+		UPDATE DRAFT
+		   SET
+		      DRAFT_DELETE='Y'
+		 WHERE DRAFT_ID=#{draftId}
+	</update>
+	
+	<select id="selectReceptionWaitList" parameterType="kr.or.anyapart.approval.vo.ApprovalVO" resultMap="draftMap">
+		SELECT
+			  A.DRAFT_ID DRAID
+		      ,E.EMP_NAME "MEM_ID"
+			  ,C.CODE_NAME TASK_CODE
+			  ,TO_CHAR(DRAFT_DATE, 'YYYY-MM-DD') DRAFT_DATE
+			  ,DRAFT_TITLE
+			FROM
+			    DRAFT A LEFT OUTER JOIN ACCOUNT B ON (A.DRAFT_ACCT=B.ACCT_ID)
+			            LEFT OUTER JOIN COMMONCODE C ON(A.TASK_CODE=C.CODE_ID)
+			            LEFT OUTER JOIN BANK D ON(B.BANK_CODE=D.BANK_CODE)
+			            LEFT OUTER JOIN EMPLOYEE E ON(A.MEM_ID=E.MEM_ID)
+			            LEFT OUTER JOIN APPROVAL F ON(A.DRAFT_ID=F.DRAFT_ID)
+			            LEFT OUTER JOIN COMMONCODE G ON(F.APP_STATUS=G.CODE_ID)
+			            LEFT OUTER JOIN LINEDETAIL H ON(F.APPLINEDE_ID=H.APPLINEDE_ID)
+			WHERE F.APP_NOWEMP=#{appNowemp}
+			
+			  AND H.APP_YN='N'
+	</select>
+	
+	<update id="updateReceptionWaitList" parameterType="kr.or.anyapart.approval.vo.LineDetailVO">
+		UPDATE LINEDETAIL
+		    SET
+		    APP_YN = 'Y'
+		   WHERE MEM_ID=#{memId}
+	</update>
+</mapper>

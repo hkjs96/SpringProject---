@@ -1,0 +1,37 @@
+/**
+ * @author 이미정
+ * @since 2021. 2. 22.
+ * @version 1.0
+ * <pre>
+ * [[개정이력(Modification Information)]]
+ * 수정일        수정자       수정내용
+ * --------     --------    ----------------------
+ * 2021. 2. 22.      이미정       최초작성
+ * Copyright (c) 2021 by DDIT All right reserved
+ * </pre>
+ */ 
+
+@charset "UTF-8";
+
+table{
+	border: 2px solid black;
+	
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+table th{
+	background-color: gray;
+	
+}
+
+body{
+	font-size: 17px;	
+}
+
+.text-right{
+	text-align: right;
+}

@@ -1,0 +1,588 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.anyapart.maintenancecost.dao.CostOfficeDAO">
+	
+	<sql id="unpaidCostFromClause">
+		FROM RECEIPT A
+		RIGHT OUTER JOIN V_MAINTENANCECOST B ON (A.COST_NO = B.COST_NO)
+		INNER JOIN RESIDENT C ON (B.MEM_ID = C.MEM_ID AND C.RES_MOVEOUT IS NULL)
+	</sql>
+	
+	<sql id="unpaidCostSearchFrag">
+		WHERE A.RECEIPT_NO IS NULL
+		<if test="searchDetail!=null and @org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.memId)">
+		  AND C.MEM_ID = #{searchDetail.memId}	
+		</if>
+	</sql>
+	
+	<!-- 전출자 등록시 미납 관리비 카운트 by 이경륜 -->
+	<select id="selectUnpaidCostCount" parameterType="kr.or.anyapart.vo.PagingVO" resultType="int">
+		SELECT COUNT(*)
+		<include refid="unpaidCostFromClause"/>
+		<include refid="unpaidCostSearchFrag"/>
+	</select>
+	
+	<!-- 전출자 등록시 미납 관리비 리스트 by 이경륜 -->
+	<select id="selectUnpaidCostList" parameterType="kr.or.anyapart.vo.PagingVO" resultType="kr.or.anyapart.maintenancecost.vo.CostVO">
+			SELECT B.*
+			FROM (
+			        SELECT ROWNUM RNUM
+			               , A.*
+			          FROM (
+			                 SELECT   B.MEM_ID
+			                 		  ,COST_COMM_TOTAL
+								      ,COST_INDV_TOTAL
+								      ,COST_TOTAL
+								      ,B.COST_NO
+								      ,COST_YEAR
+								      ,COST_MONTH
+								      ,COST_DUEDATE
+								      ,CASE WHEN COST_DUEDATE &lt; sysdate
+								            THEN ROUND(((COST_TOTAL)* 0.15 * TO_NUMBER((SYSDATE-COST_DUEDATE)) / 365))
+								            ELSE 0 END AS LATE_FEE
+								<include refid="unpaidCostFromClause"/>
+								<include refid="unpaidCostSearchFrag"/>
+								  ORDER BY COST_DUEDATE DESC
+			                ) A
+			        )B
+			WHERE RNUM BETWEEN #{startRow} AND #{endRow}
+	</select>
+	
+	<sql id="costFromClause">
+		FROM V_MAINTENANCECOST A 
+		INNER JOIN RESIDENT B ON (A.MEM_ID = B.MEM_ID)
+		INNER JOIN HOUSE C ON (B.HOUSE_CODE = C.HOUSE_CODE)
+	</sql>
+	
+	<sql id="costSearchFrag">
+	
+		<trim prefix=" WHERE" prefixOverrides="AND">
+			<if test="searchVO!=null">
+				<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.dongStart)
+			 				  and @org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.hoStart) 
+			 				  and @org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.dongEnd)
+			 				  and @org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.hoEnd)">
+						AND C.HOUSE_CODE BETWEEN #{searchVO.searchAptCode}||'D'||#{searchDetail.dongStart}||'H'||#{searchDetail.hoStart}
+												 AND #{searchVO.searchAptCode}||'D'||#{searchDetail.dongEnd}||'H'||#{searchDetail.hoEnd}
+				</if>
+					
+				<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchVO.searchAptCode)">
+					 AND INSTR(A.MEM_ID, #{searchVO.searchAptCode}) > 0
+				</if>
+				<if test="searchDetail!=null">
+					<if test="searchDetail.costYear!=null">
+						AND COST_YEAR = #{searchDetail.costYear}
+					</if>
+					<if test="searchDetail.costMonth!=null">
+						AND COST_MONTH = #{searchDetail.costMonth}
+					</if>
+				</if>
+			</if>
+		</trim>
+	</sql>
+	
+	<!-- 관리비 리스트 카운트 by 이경륜-->
+	<select id="selectCostCount" parameterType="kr.or.anyapart.vo.PagingVO" resultType="int">
+			SELECT COUNT(*)
+		<include refid="costFromClause"/>
+		<include refid="costSearchFrag"/>
+	</select>
+	
+	<!-- 관리비 리스트 조회 by 이경륜-->
+	<select id="selectCostList" parameterType="kr.or.anyapart.vo.PagingVO" resultType="kr.or.anyapart.maintenancecost.vo.CostVO">
+		SELECT B.*
+		FROM (
+		        SELECT ROWNUM RNUM
+		               , A.*
+		          FROM (
+						SELECT  COST_NO
+						        ,DONG
+						        ,HO
+						        ,C.HOUSE_AREA
+						        ,A.MEM_ID
+						        ,B.RES_NAME
+						        
+						        ,COST_COMM_TOTAL
+						        ,COST_INDV_TOTAL
+						        ,COST_TOTAL
+						        
+						        ,COST_DUEDATE
+						        ,COST_YEAR
+						        ,COST_MONTH
+						        ,COST_COMMON
+						        ,COST_CLEANING
+						        ,COST_SECURITY
+						        ,COST_DISINFECT
+						        ,COST_ELEVATOR
+						        ,COST_PARK
+						        ,COST_COMM_HEAT
+						        ,COST_INDV_HEAT
+						        ,COST_COMM_HOTWATER
+						        ,COST_INDV_HOTWATER
+						        ,COST_COMM_ELEC
+						        ,COST_INDV_ELEC
+						        ,COST_COMM_WATER
+						        ,COST_INDV_WATER
+						        ,COST_AS
+						        ,COST_LAS
+						        ,COST_COUNCIL
+						        
+						<include refid="costFromClause"/>
+						<include refid="costSearchFrag"/>
+						ORDER BY DONG ASC, HO ASC
+			                ) A
+			        )B
+			WHERE RNUM BETWEEN #{startRow} AND #{endRow}
+	</select>
+	<!-- 입주세대/총세대 , 입주면적/총면적 by 이경륜 === 추후 house.xml로 옮겨야함 -->
+	<select id="selectHouseInfoForCost" parameterType="kr.or.anyapart.maintenancecost.vo.CostVO" resultType="kr.or.anyapart.apart.vo.HouseVO">
+		WITH MOVEIN AS (
+			SELECT COUNT(*) 		MOVEIN_HOUSE_CNT
+			       ,SUM(HOUSE_AREA) MOVEIN_HOUSE_AREA
+			  FROM HOUSE
+			 WHERE INSTR(HOUSE_CODE,#{aptCode})>0
+			   AND MOVE_YN='Y'
+		), ALLHOUSE AS (
+			SELECT COUNT(*) 		TOTAL_HOUSE_CNT
+			       ,SUM(HOUSE_AREA) TOTAL_HOUSE_AREA
+			  FROM HOUSE
+			 WHERE INSTR(HOUSE_CODE,#{aptCode})>0
+		)
+		SELECT NVL(MOVEIN_HOUSE_CNT,0) 	MOVEIN_HOUSE_CNT
+		      ,NVL(MOVEIN_HOUSE_AREA,0) MOVEIN_HOUSE_AREA
+		      ,NVL(TOTAL_HOUSE_CNT,0) 	TOTAL_HOUSE_CNT
+		      ,NVL(TOTAL_HOUSE_AREA,0) 	TOTAL_HOUSE_AREA
+		      ,APT_HEAT
+		FROM MOVEIN
+			, ALLHOUSE
+			, APART
+		WHERE APT_CODE=#{aptCode}
+	</select>
+	
+	<!-- ====================부과처리==================== -->
+	<select id="selectCommMeter" parameterType="kr.or.anyapart.maintenancecost.vo.CostVO" resultType="kr.or.anyapart.meter.vo.MeterCommVO">
+		SELECT *
+		  FROM COMMONMETER
+		 WHERE COMM_MONTH = #{costMonth} 
+		   AND COMM_YEAR = #{costYear}
+		   AND APT_CODE = #{aptCode}
+	</select>
+	<select id="selectCostCommList" parameterType="kr.or.anyapart.maintenancecost.vo.CostVO" resultType="kr.or.anyapart.maintenancecost.vo.CostVO">
+		SELECT NVL(SUM(PAY_TMPSUM),0) 									COST_COMM_TOTAL
+		       ,NVL(ROUND(SUM(PAY_TMPSUM)/#{moveinHouseArea},-1),0) 	COST_COMM_TOTAL_BY_SPACE
+		       ,'일반관리비'				 				  			AS "COST_TYPE"
+		 FROM V_PAYMENT
+		WHERE PAY_YEAR = #{costYear}
+		  AND PAY_MONTH = #{costMonth}
+		  AND INSTR(MEM_ID, #{aptCode}) > 0
+		  
+		UNION ALL
+        
+        SELECT COST_COMM_TOTAL
+		      ,COST_COMM_TOTAL_BY_SPACE
+		      ,COST_TYPE
+		FROM (
+			SELECT  NVL(A.SVC_DEPOSIT/12,0)									COST_COMM_TOTAL
+			        ,NVL(ROUND(A.SVC_DEPOSIT/12/#{moveinHouseArea},-1),0)	COST_COMM_TOTAL_BY_SPACE
+			        ,C.CODE_NAME||'비' 										COST_TYPE
+			  FROM SERVICECONTRACT A
+			RIGHT OUTER JOIN SERVICE B ON (A.SVC_ID=B.SVC_ID)
+			RIGHT JOIN SVC_CODE C ON (B.SVC_CODE = C.CODE_ID)
+			 WHERE A.APT_CODE= #{aptCode}
+	<!-- 		   AND (SYSDATE-30) BETWEEN SVC_START AND SVC_END -->
+			   AND ADD_MONTHS(TO_CHAR(#{costYear})||'/'||LPAD(TO_CHAR(#{costMonth}),2,'0')||'/05',-1) BETWEEN SVC_START AND SVC_END
+			 ORDER BY COST_TYPE
+		)
+		UNION ALL
+           
+        SELECT FR * #{moveinHouseArea}								COST_COMM_TOTAL
+              ,FR        											COST_COMM_TOTAL_BY_SPACE
+              ,FR_CONTENT 											COST_TYPE
+         FROM FARERATE
+        WHERE FR_ID='F_ELEV'
+	</select>
+
+
+
+	<!-- 부과처리시 공용검침량 조회 by 이경륜 === 추후 MeterComm.xml로 옮겨야함 -->
+	<sql id="commMeterSearchFrag">
+		 WHERE APT_CODE = #{aptCode}
+	           AND COMM_YEAR = #{costYear}
+	           AND COMM_MONTH  = #{costMonth}
+	</sql>
+	<sql id="heatTypeFrag">
+		<choose>
+			<when test="'HTLOC'.equals(aptHeat)">
+				,COMM_HEAT
+		        ,COMM_HEAT * 36 AS "COMM_HEAT_COST"
+		        ,ROUND(COMM_HEAT*36/#{moveinHouseArea}) COMM_HEAT_COST_BY_SPACE
+			</when>
+			<when test="'HTCEN'.equals(aptHeat)">
+				,COMM_HEAT
+		        ,COMM_HEAT * 1100 AS "COMM_HEAT_COST"
+		        ,ROUND(COMM_HEAT*1100/#{moveinHouseArea}) COMM_HEAT_COST_BY_SPACE
+			</when>
+			<otherwise><!-- 개별난방 -->
+				,COMM_HEAT
+				,COMM_HEAT AS "COMM_HEAT_COST"
+				,COMM_HEAT AS "COMM_HEAT_COST_BY_SPACE"
+			</otherwise>
+		</choose>
+	</sql>
+	<select id="selectCommMeterByDate" parameterType="kr.or.anyapart.maintenancecost.vo.CostVO" resultType="kr.or.anyapart.meter.vo.MeterCommVO">
+		WITH ELECBILL AS (
+			 SELECT COMM_ELEC
+		               ,TRUNC( MAX(E.V1) + SUM((LEAST(U.COMM_ELEC, E.E) - E.S) * E.V2), -1) AS "COMM_ELEC_COST"
+	          FROM COMMONMETER U
+	             , ELEC E
+             <include refid="commMeterSearchFrag"/>
+	           AND E.S &lt; U.COMM_ELEC
+	        GROUP BY COMM_ELEC 
+		), WATERBILL AS (
+			SELECT COMM_WATER
+		               ,TRUNC( sum((LEAST(U.COMM_WATER, W.E) - W.S) * W.V), -1) AS "COMM_WATER_COST"
+	          FROM COMMONMETER U
+	             , WATER W
+	         <include refid="commMeterSearchFrag"/>
+	           AND W.S &lt; U.COMM_WATER
+	        GROUP BY COMM_WATER
+		)
+		SELECT  COMM_NO
+				,APT_CODE
+				,COMM_YEAR
+				,COMM_MONTH
+				,ELECBILL.COMM_ELEC
+				,ELECBILL.COMM_ELEC_COST
+				,ROUND(ELECBILL.COMM_ELEC_COST/#{moveinHouseArea}) COMM_ELEC_COST_BY_SPACE
+		        ,WATERBILL.COMM_WATER
+		        ,WATERBILL.COMM_WATER_COST
+		        ,ROUND(WATERBILL.COMM_WATER_COST/#{moveinHouseArea}) COMM_WATER_COST_BY_SPACE
+		        ,COMM_HOTWATER
+		        ,COMM_HOTWATER * 4300 AS "COMM_HOTWATER_COST"
+		        ,ROUND(COMM_HOTWATER*4300/#{moveinHouseArea}) COMM_HOTWATER_COST_BY_SPACE
+		        <include refid="heatTypeFrag"/>
+		        ,COMM_FLAG
+		FROM COMMONMETER
+		     ,ELECBILL
+		     ,WATERBILL
+		<include refid="commMeterSearchFrag"/>
+	</select>
+	
+	<sql id="billSearchFrag">
+		AND INSTR(MEM_ID, #{searchDetail.aptCode})>0
+		AND INDV_YEAR = #{searchDetail.costYear}
+		AND INDV_MONTH = #{searchDetail.costMonth}
+	</sql>
+	
+	<sql id="costListSearchFrag">
+		<trim prefix=" WHERE" prefixOverrides="AND">
+			<if test="searchDetail!=null">
+				<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.resType)">
+					<choose>
+						<when test="'STAY'.equals(searchDetail.resType)"> <!-- 기입주자 -->
+							AND (RES_MOVEOUT IS NULL AND RES_MOVEIN &lt;= TO_CHAR(#{searchDetail.costYear})||'/'||LPAD(TO_CHAR(#{searchDetail.costMonth}),2,'0')||'/01')
+						</when>
+						<when test="'OUT'.equals(searchDetail.resType)"> <!-- 전출자 -->
+							AND (RES_MOVEOUT BETWEEN TO_CHAR(#{searchDetail.costYear})||LPAD(TO_CHAR(#{searchDetail.costMonth}),2,'0')||'01'
+												AND LAST_DAY(TO_CHAR(#{searchDetail.costYear})||LPAD(TO_CHAR(#{searchDetail.costMonth}),2,'0')||'01'))
+						</when>
+						<when test="'IN'.equals(searchDetail.resType)"> <!-- 전입자 -->
+							AND (RES_MOVEIN BETWEEN TO_CHAR(#{searchDetail.costYear})||LPAD(TO_CHAR(#{searchDetail.costMonth}),2,'0')||'01'
+												AND LAST_DAY(TO_CHAR(#{searchDetail.costYear})||LPAD(TO_CHAR(#{searchDetail.costMonth}),2,'0')||'01'))
+						</when>
+						<otherwise>
+							AND	(RES_MOVEOUT IS NULL OR RES_MOVEOUT &gt;= TO_CHAR(#{searchDetail.costYear})||'/'||LPAD(TO_CHAR(#{searchDetail.costMonth}),2,'0')||'/01')
+						</otherwise>
+					</choose>
+				</if>
+			</if>
+			AND IM.INDV_YEAR = #{searchDetail.costYear} AND IM.INDV_MONTH = #{searchDetail.costMonth}
+		</trim>
+	</sql>
+	<select id="selectCostListCountByHouse" parameterType="kr.or.anyapart.vo.PagingVO" resultType="int">
+		WITH CARTMP AS (
+                SELECT COUNT(*) CARCNT
+                      ,MEM_ID
+                  FROM CAR
+                WHERE (CAR_CODE='CR' OR CAR_CODE='CN') 
+                	  AND CAR_YN = 'Y'
+                GROUP BY MEM_ID
+		), ELECBILL AS (
+		                SELECT MEM_ID
+		                       ,INDV_ELEC
+		                       ,TRUNC( MAX(E.V1) + sum((LEAST(M.INDV_ELEC, E.E) - E.S) * E.V2), -1) AS COST_INDV_ELEC
+		                  FROM INDIVIDUALMETER M
+		                     , ELEC E
+		                WHERE E.S &lt; M.INDV_ELEC
+		                <include refid="billSearchFrag"/>
+		                GROUP BY INDV_ELEC, MEM_ID
+		), WATERBILL AS (
+		                SELECT MEM_ID
+		                       ,INDV_WATER
+		                        ,TRUNC( SUM((LEAST(M.INDV_WATER, W.E) - W.S) * W.V), -1) AS COST_INDV_WATER
+		                  FROM INDIVIDUALMETER M
+		                     , WATER W
+		                WHERE W.S &lt; M.INDV_WATER
+		                <include refid="billSearchFrag"/>
+		                GROUP BY INDV_WATER, MEM_ID
+		)
+		SELECT COUNT(*)
+		  FROM RESIDENT A
+		INNER JOIN HOUSE B ON (A.HOUSE_CODE = B.HOUSE_CODE)
+		INNER JOIN INDIVIDUALMETER IM ON (A.MEM_ID = IM.MEM_ID)
+		LEFT OUTER JOIN CARTMP C ON (A.MEM_ID = C.MEM_ID)
+		INNER JOIN ELECBILL D ON (A.MEM_ID = D.MEM_ID)
+		INNER JOIN WATERBILL E ON (A.MEM_ID = E.MEM_ID)
+		<include refid="costListSearchFrag"/>
+		ORDER BY A.HOUSE_CODE
+	</select>
+	
+	<!-- [부과처리] 난방 계산식 -->
+	<sql id="heatTypeCalcFrag">
+		<choose>
+			<when test="'HTLOC'.equals(searchDetail.aptHeat)">
+				,IM.INDV_HEAT            
+		        ,(52*B.HOUSE_AREA) + (IM.INDV_HEAT * 72)   COST_INDV_HEAT 
+			</when>
+			<when test="'HTCEN'.equals(searchDetail.aptHeat)">
+				<!-- 중앙난방금액 평수별로 계산시켜야함 -->
+				,IM.INDV_HEAT            
+		        ,(52*B.HOUSE_AREA) + (IM.INDV_HEAT * 72)   COST_INDV_HEAT 
+			</when>
+			<otherwise><!-- 개별난방 -->
+				,NVL(IM.INDV_HEAT,0) INDV_HEAT            
+				,NVL(IM.INDV_HEAT,0) COST_INDV_HEAT 
+			</otherwise>
+		</choose>
+	</sql>
+	
+	<!-- [부과처리] 리스트 조회 및 부과 처리용 -->
+	<sql id="selectCostListByHouseFrag">
+		WITH CARTMP AS (
+                SELECT COUNT(*) CARCNT
+                      ,MEM_ID
+                  FROM CAR
+                WHERE (CAR_CODE='CR' OR CAR_CODE='CN') 
+                	  AND CAR_YN = 'Y'
+                GROUP BY MEM_ID
+		), ELECBILL AS (
+		                SELECT MEM_ID
+		                       ,INDV_ELEC
+		                       ,TRUNC( MAX(E.V1) + sum((LEAST(M.INDV_ELEC, E.E) - E.S) * E.V2), -1) AS COST_INDV_ELEC
+		                  FROM INDIVIDUALMETER M
+		                     , ELEC E
+		                WHERE E.S &lt; M.INDV_ELEC
+		                AND INSTR(MEM_ID, #{searchDetail.aptCode})>0
+		                AND INDV_YEAR = #{searchDetail.costYear}
+		                AND INDV_MONTH = #{searchDetail.costMonth}
+		                GROUP BY INDV_ELEC, MEM_ID
+		), WATERBILL AS (
+		                SELECT MEM_ID
+		                       ,INDV_WATER
+		                        ,TRUNC( SUM((LEAST(M.INDV_WATER, W.E) - W.S) * W.V), -1) AS COST_INDV_WATER
+		                  FROM INDIVIDUALMETER M
+		                     , WATER W
+		                WHERE W.S &lt; M.INDV_WATER
+		                AND INSTR(MEM_ID, #{searchDetail.aptCode})>0
+		                AND INDV_YEAR = #{searchDetail.costYear}
+		                AND INDV_MONTH = #{searchDetail.costMonth}
+		                GROUP BY INDV_WATER, MEM_ID
+		)
+		SELECT #{searchDetail.costYear} COST_YEAR
+			   ,#{searchDetail.costMonth} COST_MONTH
+			   ,B.DONG               
+		       ,B.HO                
+		       ,B.HOUSE_AREA     
+		       ,A.RES_NAME
+		       ,A.MEM_ID
+		       <include refid="heatTypeCalcFrag"/>
+		       ,IM.INDV_HOTWATER 
+		       ,IM.INDV_HOTWATER * 4300  COST_INDV_HOTWATER 
+		       ,E.INDV_WATER       
+		       ,E.COST_INDV_WATER   
+		       ,D.INDV_ELEC         
+		       ,D.COST_INDV_ELEC     
+		       ,NVL(C.CARCNT,0) CAR_CNT   
+		       ,CASE WHEN C.CARCNT = 3 THEN 10000
+		             WHEN C.CARCNT = 4 THEN 20000
+		             WHEN C.CARCNT = 5 THEN 30000
+		             ELSE 0 END     COST_PARK 
+		       ,B.HOUSE_AREA * 60   COST_AS 
+		       ,B.HOUSE_AREA * 300  COST_LAS 
+		       ,B.HOUSE_AREA * 3    COST_COUNCIL 
+		  FROM RESIDENT A
+		INNER JOIN HOUSE B ON (A.HOUSE_CODE = B.HOUSE_CODE)
+		INNER JOIN INDIVIDUALMETER IM ON (A.MEM_ID = IM.MEM_ID)
+		LEFT OUTER JOIN CARTMP C ON (A.MEM_ID = C.MEM_ID)
+		INNER JOIN ELECBILL D ON (A.MEM_ID = D.MEM_ID)
+		INNER JOIN WATERBILL E ON (A.MEM_ID = E.MEM_ID)
+		<include refid="costListSearchFrag"/>
+		ORDER BY A.HOUSE_CODE
+	</sql>
+
+	<!-- [부과처리] 리스트 조회 페이징용 -->
+	<select id="selectCostListByHouse" parameterType="kr.or.anyapart.vo.PagingVO" resultType="kr.or.anyapart.maintenancecost.vo.CostVO">
+		SELECT B.*
+		FROM (
+		        SELECT ROWNUM RNUM
+		               , A.*
+		          FROM (
+						<include refid="selectCostListByHouseFrag"/>
+						) A
+			        )B
+			WHERE RNUM BETWEEN #{startRow} AND #{endRow}
+	</select>
+	
+	<!-- [부과처리] 처리시 전체리스트 조회-->
+	<select id="selectCostListByHouseWithoutPaging" parameterType="kr.or.anyapart.vo.PagingVO" resultType="kr.or.anyapart.maintenancecost.vo.CostVO">
+		<include refid="selectCostListByHouseFrag"/>
+	</select>
+	
+	<!-- [부과처리] 부과처리 -->
+	<insert id="insertMonthlyCostInsert" parameterType="java.util.List">
+		<foreach collection="list" item="cost" index="index" separator=" " open="INSERT ALL" close="SELECT * FROM DUAL">
+			INTO MAINTENANCECOST (
+			    COST_NO
+			    ,MEM_ID
+			    ,COST_DUEDATE
+			    ,COST_YEAR
+			    ,COST_MONTH
+			    ,COST_COMMON
+			    ,COST_CLEANING
+			    ,COST_SECURITY
+			    ,COST_DISINFECT
+			    ,COST_ELEVATOR
+			    ,COST_PARK
+			    ,COST_COMM_HEAT
+			    ,COST_INDV_HEAT
+			    ,COST_COMM_HOTWATER
+			    ,COST_INDV_HOTWATER
+			    ,COST_COMM_ELEC
+			    ,COST_INDV_ELEC
+			    ,COST_COMM_WATER
+			    ,COST_INDV_WATER
+			    ,COST_AS
+			    ,COST_LAS
+			    ,COST_COUNCIL
+			) VALUES (
+				( 
+				  SELECT NVL(MAX(COST_NO), 0)+1+#{index} FROM MAINTENANCECOST
+			    )
+				, #{cost.memId,jdbcType=VARCHAR}
+				, ADD_MONTHS(TO_DATE(TO_CHAR(#{cost.costYear,jdbcType=NUMERIC})||LPAD(TO_CHAR(#{cost.costMonth,jdbcType=NUMERIC}),2,'0')||'01'),+2)
+				, #{cost.costYear,jdbcType=NUMERIC}
+				, #{cost.costMonth,jdbcType=NUMERIC}
+				, #{cost.costCommon,jdbcType=NUMERIC}
+				, #{cost.costCleaning,jdbcType=NUMERIC}
+				, #{cost.costSecurity,jdbcType=NUMERIC}
+				, #{cost.costDisinfect,jdbcType=NUMERIC}
+				, #{cost.costElevator,jdbcType=NUMERIC}
+				, #{cost.costPark,jdbcType=NUMERIC}
+				, #{cost.costCommHeat,jdbcType=NUMERIC}
+				, #{cost.costIndvHeat,jdbcType=NUMERIC}
+				, #{cost.costCommHotwater,jdbcType=NUMERIC}
+				, #{cost.costIndvHotwater,jdbcType=NUMERIC}
+				, #{cost.costCommElec,jdbcType=NUMERIC}
+				, #{cost.costIndvElec,jdbcType=NUMERIC}
+				, #{cost.costCommWater,jdbcType=NUMERIC}
+				, #{cost.costIndvWater,jdbcType=NUMERIC}
+				, #{cost.costAs,jdbcType=NUMERIC}
+				, #{cost.costLas,jdbcType=NUMERIC}
+				, #{cost.costCouncil,jdbcType=NUMERIC}
+			)
+		</foreach>
+	</insert>
+	
+	<!-- [부과처리] 부과처리 후 공동검침 플래스 변경-->
+	<update id="updateCommMeterFlag" parameterType="kr.or.anyapart.maintenancecost.vo.CostVO">
+		UPDATE COMMONMETER
+		   SET COMM_FLAG = 'Y'
+		 WHERE COMM_NO = #{commNo}
+	</update>
+	
+	<!-- [부과처리] 부과됐으면 예상금액아니고 부과한금액 보여주기위함 -->
+	<sql id="selectPaidCostFrag">
+<!-- 		        WITH CARTMP AS ( -->
+<!--                 SELECT COUNT(*) CARCNT -->
+<!--                       ,MEM_ID -->
+<!--                   FROM CAR -->
+<!--                 WHERE (CAR_CODE='CR' OR CAR_CODE='CN')  -->
+<!--                 	  AND CAR_YN = 'Y' -->
+<!--                 GROUP BY MEM_ID -->
+<!-- 		) -->
+<!--         SELECT  NVL(E.CARCNT,0) CAR_CNT    -->
+<!--                 ,COST_NO -->
+<!--                 ,DONG -->
+<!--                 ,HO -->
+<!--                 ,C.HOUSE_AREA -->
+<!--                 ,A.MEM_ID -->
+<!--                 ,B.RES_NAME -->
+                
+<!--                 ,COST_COMM_TOTAL -->
+<!--                 ,COST_INDV_TOTAL -->
+<!--                 ,COST_TOTAL -->
+                
+<!--                 ,COST_DUEDATE -->
+<!--                 ,COST_YEAR -->
+<!--                 ,COST_MONTH -->
+<!--                 ,COST_COMMON -->
+<!--                 ,COST_CLEANING -->
+<!--                 ,COST_SECURITY -->
+<!--                 ,COST_DISINFECT -->
+<!--                 ,COST_ELEVATOR -->
+<!--                 ,COST_PARK -->
+<!--                 ,COST_COMM_HEAT -->
+<!--                 ,COST_INDV_HEAT -->
+<!--                 ,COST_COMM_HOTWATER -->
+<!--                 ,COST_INDV_HOTWATER -->
+<!--                 ,COST_COMM_ELEC -->
+<!--                 ,COST_INDV_ELEC -->
+<!--                 ,COST_COMM_WATER -->
+<!--                 ,COST_INDV_WATER -->
+<!--                 ,COST_AS -->
+<!--                 ,COST_LAS -->
+<!--                 ,COST_COUNCIL -->
+                
+<!--                 ,INDV_HEAT -->
+<!--                 ,INDV_HOTWATER -->
+<!--                 ,INDV_WATER -->
+<!--                 ,INDV_ELEC -->
+<!--       FROM V_MAINTENANCECOST A  -->
+<!-- 		INNER JOIN RESIDENT B ON (A.MEM_ID = B.MEM_ID) -->
+<!-- 		INNER JOIN HOUSE C ON (B.HOUSE_CODE = C.HOUSE_CODE) -->
+<!--         INNER JOIN INDIVIDUALMETER IM ON (B.MEM_ID = IM.MEM_ID AND (IM.INDV_YEAR=2021 AND IM.INDV_MONTH=1)) -->
+<!--         LEFT OUTER JOIN CARTMP E ON (A.MEM_ID = E.MEM_ID) -->
+<!--         WHERE COST_YEAR=2021 AND COST_MONTH=1 -->
+<!--         ORDER BY B.HOUSE_CODE  -->
+	</sql>
+	
+	<select id="selectCostListYearly" parameterType="kr.or.anyapart.maintenancecost.vo.CostVO" resultType="kr.or.anyapart.maintenancecost.vo.CostVO">
+		SELECT TO_CHAR(b.dt, 'YYYY-MM') AS COST_DUEDATE
+		     , NVL(SUM(A.COST_TOTAL), 0) COST_TOTAL
+		     , NVL(SUM(A.COST_COMM_TOTAL), 0) COST_COMM_TOTAL
+		     , NVL(SUM(A.COST_INDV_TOTAL), 0) COST_INDV_TOTAL
+		  FROM ( SELECT  TO_CHAR(COST_YEAR) || TRIM(TO_CHAR(COST_MONTH,'00')) || '01' AS COST_DUEDATE
+		              , SUM(COST_TOTAL) COST_TOTAL
+		              , SUM(COST_COMM_TOTAL) COST_COMM_TOTAL
+		              , SUM(COST_INDV_TOTAL) COST_INDV_TOTAL
+		           FROM V_MAINTENANCECOST
+		          WHERE COST_DUEDATE BETWEEN TO_DATE(#{costDuedateStart}, 'YYYY-MM-DD')
+		                               AND TO_DATE(#{costDuedateEnd}, 'YYYY-MM-DD')
+		            <![CDATA[
+		            AND INSTR(MEM_ID,#{aptCode})>0
+		            GROUP BY to_char(COST_YEAR) || trim(to_char(COST_MONTH,'00')) || '01'
+		        ) a
+		      , ( SELECT TO_DATE(#{costDuedateStart},'YYYY-MM-DD') + LEVEL - 1 AS dt
+		            FROM dual 
+		         CONNECT BY LEVEL <= (TO_DATE(#{costDuedateEndConnect},'YYYY-MM-DD') 
+		                            - TO_DATE(#{costDuedateStart},'YYYY-MM-DD') + 1)
+		                            
+		            ]]>
+		        ) b
+		  WHERE b.dt = a.COST_DUEDATE(+)
+		  GROUP BY TO_CHAR(b.dt, 'YYYY-MM')
+		  ORDER BY TO_CHAR(b.dt, 'YYYY-MM')
+	
+	</select>
+	
+</mapper>

@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.anyapart.document.dao.IDocumentDAO">
+<sql id="searchFrag">
+	<where>
+	BO_TYPE='ODOCS'
+	AND APT_CODE=#{searchVO.searchAptCode}
+		<if test="searchVO!=null and @org.apache.commons.lang3.StringUtils@isNotBlank(searchVO.searchWord)">
+			<choose>
+				<when test="'title'.equals(searchVO.searchType)">
+					AND INSTR(A.BO_TITLE, #{searchVO.searchWord}) > 0
+				</when>
+				<when test="'writer'.equals(searchVO.searchType)">
+					AND INSTR(C.MEM_NICK, #{searchVO.searchWord}) > 0
+				</when>
+				<otherwise>
+					AND (INSTR(A.BO_TITLE, #{searchVO.searchWord}) > 0
+						 OR INSTR(C.MEM_NICK, #{searchVO.searchWord}) > 0)
+				</otherwise>
+			</choose>
+		</if>
+	</where>
+</sql>
+
+<select id="selectDocumentCount" parameterType="kr.or.anyapart.vo.PagingVO" resultType="int">
+	SELECT COUNT(*)
+	FROM BOARD A LEFT OUTER JOIN EMPLOYEE B ON(BO_WRITER=B.MEM_ID)
+				LEFT OUTER JOIN MEMBER C ON(BO_WRITER=C.MEM_ID)
+	<include refid="searchFrag" />
+</select>
+
+<select id="selectDocumentList" parameterType="kr.or.anyapart.vo.PagingVO" resultType="kr.or.anyapart.board.vo.BoardVO">
+	SELECT B.*
+	FROM(    
+	    SELECT ROWNUM RNUM, A.*
+	    FROM (    
+	        SELECT
+	            BO_NO,
+	            BO_TYPE,
+	            BO_TITLE,
+	            MEM_NICK BO_WRITER,
+	            BO_CONTENT,
+	            TO_CHAR(BO_DATE, 'YYYY-MM-DD')BO_DATE,
+	            BO_HIT,
+	            BO_PARENT,
+	            BO_DEPTH,
+	            BO_DELETE
+	        FROM BOARD A LEFT OUTER JOIN EMPLOYEE B ON(BO_WRITER=B.MEM_ID)
+	        			LEFT OUTER JOIN MEMBER C ON(BO_WRITER=C.MEM_ID)
+	        <include refid="searchFrag" />
+	        ORDER BY BO_DATE DESC
+	    ) A  
+	) B
+	WHERE RNUM BETWEEN #{startRow} AND #{endRow}
+</select>
+
+<resultMap type="kr.or.anyapart.board.vo.BoardVO" id="boardMap" autoMapping="true">
+    <id property="boNo" column="BO_NO"/>
+    <collection property="attachList" ofType="kr.or.anyapart.vo.AttachVO" autoMapping="true">
+        <id property="attSn" column="ATT_SN"/>
+    </collection>
+</resultMap>
+   
+<select id="selectDocument" parameterType="kr.or.anyapart.board.vo.BoardVO" resultMap="boardMap">
+	SELECT
+		A.BO_NO,
+		BO_TYPE,
+        BO_TITLE,
+        BO_WRITER,
+        BO_CONTENT,
+        TO_CHAR(BO_DATE, 'YYYY-MM-DD')BO_DATE,
+        BO_HIT,
+        BO_PARENT,
+        BO_DEPTH,
+        BO_DELETE,
+	    ATT_SN,
+	    ATT_SAVENAME,
+	    ATT_FILENAME,
+	    ATT_FILESIZE,
+	    ATT_MIME,
+	    ATT_FANCY
+	FROM BOARD A LEFT OUTER JOIN ATTACH B ON (A.BO_NO=B.BO_NO)
+	WHERE A.BO_NO=#{boNo}
+</select>
+
+<update id="updateDocumentHit" parameterType="kr.or.anyapart.board.vo.BoardVO">
+	UPDATE BOARD
+	SET BO_HIT = #{boHit}
+	WHERE BO_NO = #{boNo} 
+</update>
+
+<insert id="insertDocument" parameterType="kr.or.anyapart.board.vo.BoardVO">
+	<selectKey order="BEFORE" keyProperty="boNo" resultType="int">
+		SELECT NVL(MAX(BO_NO),0)+1
+		FROM BOARD
+	</selectKey>
+	INSERT INTO board (
+	    bo_no,
+	    bo_type,
+	    bo_title,
+	    bo_writer,
+	    bo_content,
+	    bo_date
+	) VALUES (
+	    #{boNo},
+	    'ODOCS',
+	    #{boTitle},
+	    #{boWriter},
+	    #{boContent},
+	    SYSDATE
+	)
+</insert>
+
+<update id="updateDocument" parameterType="kr.or.anyapart.board.vo.BoardVO">
+UPDATE board
+   SET BO_TITLE = #{boTitle}
+       , BO_CONTENT = #{boContent}
+       , BO_DATE = SYSDATE
+WHERE bo_no = #{boNo}
+</update>
+
+<delete id="deleteDocument" parameterType="kr.or.anyapart.board.vo.BoardVO">
+DELETE BOARD
+WHERE BO_NO = #{boNo}
+</delete>
+
+<delete id="deleteAttaches" parameterType="kr.or.anyapart.board.vo.BoardVO">
+DELETE ATTACH
+WHERE BO_NO = #{boNo}
+</delete>
+
+</mapper>

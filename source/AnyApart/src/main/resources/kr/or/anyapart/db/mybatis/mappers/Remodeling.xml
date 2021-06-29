@@ -1,0 +1,244 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.anyapart.remodelling.dao.IRemodelingDAO">
+<sql id="searchFrag">
+	<if test="searchVO!=null and @org.apache.commons.lang3.StringUtils@isNotBlank(searchVO.searchWord)">
+		<choose>
+			<when test="'title'.equals(searchVO.searchType)">
+				AND INSTR(RMDL_TITLE, #{searchVO.searchWord}) > 0
+			</when>
+			<when test="'memId'.equals(searchVO.searchType)">
+				AND INSTR(A.MEM_ID, #{searchVO.searchWord}) > 0
+			</when>
+			<otherwise>
+				AND INSTR(RMDL_TITLE, #{searchVO.searchWord}) > 0
+				OR INSTR(A.MEM_ID, #{searchVO.searchWord}) > 0
+			</otherwise>
+		</choose>
+	</if>
+</sql>
+
+<sql id="searchFragVO">
+	<if test="searchDetail!=null">
+		<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.rmdlYn) and @org.apache.commons.lang3.StringUtils@isBlank(searchDetail.dong)">
+			AND RMDL_YN=#{searchDetail.rmdlYn}
+		</if>
+	</if>
+</sql>
+
+<select id="selectRmdlCountR" parameterType="kr.or.anyapart.vo.PagingVO" resultType="int">
+	SELECT COUNT(*)
+	FROM REMODELLING A LEFT OUTER JOIN RESIDENT B ON(A.MEM_ID=B.MEM_ID)
+                     LEFT OUTER JOIN HOUSE C ON(B.HOUSE_CODE=C.HOUSE_CODE)
+	WHERE RMDL_YN !='D'
+	AND APT_CODE = #{searchVO.searchAptCode}
+	<include refid="searchFrag"/>
+</select>
+
+<select id="selectRmdlCount" parameterType="kr.or.anyapart.vo.PagingVO" resultType="int">
+	SELECT COUNT(*)
+	FROM REMODELLING A LEFT OUTER JOIN RESIDENT B ON(A.MEM_ID=B.MEM_ID)
+                     LEFT OUTER JOIN HOUSE C ON(B.HOUSE_CODE=C.HOUSE_CODE)
+	WHERE APT_CODE = #{searchVO.searchAptCode}
+	<include refid="searchFrag"/>
+	<include refid="searchFragVO"/>
+</select>
+
+<select id="selectRmdlList" parameterType="kr.or.anyapart.vo.PagingVO" resultType="kr.or.anyapart.remodelling.vo.RemodellingVO">
+	SELECT B.*
+	FROM (
+	    SELECT ROWNUM RNUM, A.*
+	        FROM(
+	            SELECT
+	                A.RMDL_NO,
+				    A.RMDL_YN,
+				    A.RMDL_TITLE,
+				    A.MEM_ID,
+				    D.MEM_NICK,
+				    TO_CHAR(A.RMDL_START, 'YYYY-MM-DD') RMDL_START,
+				    TO_CHAR(A.RMDL_END, 'YYYY-MM-DD') RMDL_END,
+				    TO_CHAR(A.RMDL_DATE, 'YYYY-MM-DD HH:MI') RMDL_DATE,
+				    B.HOUSE_CODE,
+				    C.DONG,
+				    C.HO,
+				    C.APT_CODE
+	            FROM REMODELLING A, RESIDENT B, HOUSE C, MEMBER D
+				WHERE A.MEM_ID=B.MEM_ID
+				AND B.HOUSE_CODE=C.HOUSE_CODE
+				AND RMDL_YN !='D'
+				AND A.MEM_ID=D.MEM_ID
+				AND APT_CODE = #{searchVO.searchAptCode}
+				<include refid="searchFrag"/>
+	            ORDER BY RMDL_NO DESC
+	        ) A 
+	    ORDER BY RNUM) B
+	WHERE RNUM BETWEEN #{startRow} AND #{endRow}
+</select>
+
+<select id="selectRmdlListOffice" parameterType="kr.or.anyapart.vo.PagingVO" resultType="kr.or.anyapart.remodelling.vo.RemodellingVO">
+	SELECT B.*
+	FROM (
+	    SELECT ROWNUM RNUM, A.*
+	        FROM(
+	            SELECT
+	                A.RMDL_NO,
+				    A.RMDL_YN,
+				    A.RMDL_TITLE,
+				    A.MEM_ID,
+                    MEM_NICK,
+				    TO_CHAR(A.RMDL_START, 'YYYY-MM-DD') RMDL_START,
+				    TO_CHAR(A.RMDL_END, 'YYYY-MM-DD') RMDL_END,
+				    TO_CHAR(A.RMDL_DATE, 'YYYY-MM-DD') RMDL_DATE,
+				    B.HOUSE_CODE,
+				    C.DONG,
+				    C.HO,
+				    C.APT_CODE
+	            FROM REMODELLING A, RESIDENT B, HOUSE C, MEMBER D
+				WHERE A.MEM_ID=B.MEM_ID
+				AND B.HOUSE_CODE=C.HOUSE_CODE
+                AND A.MEM_ID = D.MEM_ID
+				AND APT_CODE = #{searchVO.searchAptCode}
+				<include refid="searchFrag"/>
+				<include refid="searchFragVO"/>
+	            ORDER BY RMDL_NO DESC
+	        ) A 
+	    ORDER BY RNUM) B
+	WHERE RNUM BETWEEN #{startRow} AND #{endRow}
+</select>
+
+<select id="selectRmdlWaitingCnt" parameterType="kr.or.anyapart.vo.PagingVO" resultType="int">
+	SELECT COUNT(*) WAITINGCNT
+	FROM REMODELLING A LEFT OUTER JOIN RESIDENT B ON(A.MEM_ID=B.MEM_ID)
+                     LEFT OUTER JOIN HOUSE C ON(B.HOUSE_CODE=C.HOUSE_CODE)
+	WHERE RMDL_YN='N'
+	AND APT_CODE=#{searchVO.searchAptCode}
+</select>
+
+<select id="selectRmdl" parameterType="kr.or.anyapart.remodelling.vo.RemodellingVO" resultType="kr.or.anyapart.remodelling.vo.RemodellingVO">
+	SELECT
+	    A.RMDL_NO,
+	    A.RMDL_YN,
+	    A.RMDL_TITLE,
+	    A.MEM_ID,
+	    TO_CHAR(A.RMDL_START, 'YYYY-MM-DD') RMDL_START,
+	    TO_CHAR(A.RMDL_END, 'YYYY-MM-DD') RMDL_END,
+	    TO_CHAR(A.RMDL_DATE, 'YYYY-MM-DD HH:MI') RMDL_DATE,
+	    B.HOUSE_CODE,
+	    C.DONG,
+	    C.HO,
+	    C.APT_CODE
+	 FROM REMODELLING A, RESIDENT B, HOUSE C
+	WHERE RMDL_NO= #{rmdlNo} 
+	  AND A.MEM_ID=B.MEM_ID
+	  AND B.HOUSE_CODE=C.HOUSE_CODE
+</select>
+
+<insert id="insertRmdl" parameterType="kr.or.anyapart.remodelling.vo.RemodellingVO" >
+	<selectKey order="BEFORE" keyProperty="rmdlNo" resultType="int">
+		SELECT NVL(MAX(rmdl_no), 0)+1
+		FROM REMODELLING
+	</selectKey>
+	INSERT INTO REMODELLING (
+	    RMDL_NO,    
+	    RMDL_YN,    
+	    RMDL_TITLE,
+	    MEM_ID,    
+	    RMDL_START,    
+	    RMDL_END,
+	    RMDL_DATE
+	) VALUES (
+	    #{rmdlNo},   
+	    'N',    
+	    #{rmdlTitle},
+	    #{memId}, 	
+	    #{rmdlStart},	
+	    #{rmdlEnd},
+	    SYSDATE
+	)
+</insert>
+
+<update id="deleteRmdl" parameterType="kr.or.anyapart.remodelling.vo.RemodellingVO">
+	UPDATE REMODELLING
+	SET RMDL_YN='D'
+	WHERE RMDL_NO = #{rmdlNo}
+</update>
+
+<update id="updateRmdlYn" parameterType="kr.or.anyapart.remodelling.vo.RemodellingVO">
+	UPDATE REMODELLING
+	SET RMDL_YN='Y'
+	WHERE RMDL_NO = #{rmdlNo}
+</update>
+
+<insert id="insertRmdlSchedule" parameterType="kr.or.anyapart.vo.ScheduleVO">
+	<selectKey order="BEFORE" keyProperty="schdNo" resultType="int">
+		SELECT NVL(MAX(SCHD_NO), 0)+1
+		FROM SCHEDULE
+	</selectKey>
+
+	INSERT INTO schedule (
+	    SCHD_NO,
+	    SCHD_TYPE,
+	    SCHD_TITLE,
+	    SCHD_CONTENT,
+	    SCHD_START,
+	    SCHD_END,
+	    APT_CODE,
+	    APPLY_NO
+	) VALUES (
+	  	#{schdNo},
+	  	#{schdType},
+	  	#{schdTitle},
+	  	#{schdContent},
+	  	#{schdStart},
+	  	#{schdEnd},
+	  	#{aptCode},
+	  	#{applyNo}
+	)
+</insert>
+
+<update id="approvalCancleRmdl" parameterType="int">
+	UPDATE REMODELLING
+	SET RMDL_YN = 'N'
+	WHERE RMDL_NO = #{rmdlNo}
+</update>
+
+<select id="selectRmdlSchedule" parameterType="kr.or.anyapart.vo.ScheduleVO" resultType="kr.or.anyapart.vo.ScheduleVO">
+	SELECT
+	    SCHD_NO,
+	    SCHD_TYPE,
+	    SCHD_TITLE,
+	    SCHD_CONTENT,
+	    SCHD_START,
+	    SCHD_END,
+	    APPLY_NO
+	FROM SCHEDULE    
+    WHERE SCHD_NO = #{schdNo}
+</select>
+
+<delete id="deleteRmdlSchedule" parameterType="kr.or.anyapart.vo.ScheduleVO">
+	DELETE SCHEDULE
+	WHERE SCHD_NO = #{schdNo}
+</delete>
+
+<select id="selectDongList" parameterType="kr.or.anyapart.remodelling.vo.RemodellingVO" resultType="kr.or.anyapart.afterservice.vo.AfterServiceVO">
+	SELECT DISTINCT DONG
+	FROM HOUSE
+	WHERE APT_CODE=#{aptCode}
+</select>
+
+<select id="selectScheduleManage" parameterType="kr.or.anyapart.remodelling.vo.RemodellingVO" resultType="kr.or.anyapart.vo.ScheduleVO">
+	SELECT
+	    SCHD_NO,
+	    SCHD_TYPE,
+	    SCHD_TITLE,
+	    SCHD_CONTENT,
+	    SCHD_START,
+	    SCHD_END,
+	    APT_CODE,
+	    APPLY_NO
+	FROM
+	    SCHEDULE, REMODELLING
+	WHERE RMDL_TITLE = SCHD_CONTENT
+	AND RMDL_NO = #{rmdlNo}
+</select>
+</mapper>

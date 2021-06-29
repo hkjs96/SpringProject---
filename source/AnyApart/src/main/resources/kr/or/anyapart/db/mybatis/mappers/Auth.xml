@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.anyapart.auth.dao.IAuthDAO">
+	<select id="authMember" parameterType="String" resultType="kr.or.anyapart.vo.MemberVO">
+	    SELECT  MEM_ID,
+			    MEM_NICK,
+			    MEM_PASS,
+			    MEM_ROLE,
+			    MEM_DELETE,
+	            NVL(APT_CODE, ' ') AS APT_CODE,
+	            NVL(APT_NAME, ' ') AS APT_NAME
+		FROM MEMBER A
+        	LEFT JOIN APART B ON (B.APT_CODE = SUBSTR(#{memId},1,5))
+		WHERE MEM_ID = #{memId}
+	</select>
+	
+	
+	<sql id="whereFrag">
+		WHERE MEM_DELETE IN ('n','N')
+		<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(memId)">
+			AND A.MEM_ID = #{memId, jdbcType=VARCHAR}
+			AND RES_MAIL = #{memEmail, jdbcType=VARCHAR}
+   		    OR EMP_MAIL = #{memEmail, jdbcType=VARCHAR}
+		</if>
+		<if test="@org.apache.commons.lang3.StringUtils@isBlank(memId)">
+			AND (RES_NAME = #{memName, jdbcType=VARCHAR}
+           		AND RES_MAIL = #{memEmail, jdbcType=VARCHAR})
+   		   OR (EMP_NAME = #{memName, jdbcType=VARCHAR}
+   		   		AND EMP_MAIL = #{memEmail, jdbcType=VARCHAR}) 
+		</if>
+	</sql>
+	
+	<select id="retrieveMember" parameterType="kr.or.anyapart.vo.MemberVO" resultType="kr.or.anyapart.vo.MemberVO">
+		SELECT 
+			A.MEM_ID AS MEM_ID
+		FROM MEMBER A left outer join EMPLOYEE B on A.MEM_ID = B.MEM_ID
+             		  left outer join RESIDENT C on A.MEM_ID = C.MEM_ID
+        <include refid="whereFrag"/>
+	</select>
+	
+	<update id="updatePass" parameterType="kr.or.anyapart.vo.MemberVO">
+		UPDATE MEMBER
+		SET MEM_PASS = #{memPass, jdbcType=VARCHAR}
+		WHERE MEM_ID = #{memId, jdbcType=VARCHAR}
+	</update>
+</mapper>

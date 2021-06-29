@@ -1,0 +1,329 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.anyapart.employee.dao.IEmployeeDAO">
+	<sql id="changeEmpSearchFrag">
+		<trim prefix=" WHERE" prefixOverrides="AND">
+		<if test="searchVO!=null">
+			<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchVO.searchAptCode)">
+				 AND INSTR(A.MEM_ID, #{searchVO.searchAptCode}) > 0
+			</if>
+			<if test="searchDetail!=null">
+					<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.searchStartS)
+					          and @org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.searchStartE)"
+					>
+						AND EMP_START BETWEEN #{searchDetail.searchStartS} AND #{searchDetail.searchStartE}
+					</if>
+					<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.searchEndS)
+					          and @org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.searchEndE)">
+						AND EMP_END BETWEEN #{searchDetail.searchEndS} AND #{searchDetail.searchEndE}
+					</if>
+					<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.empName)">
+						AND INSTR(EMP_NAME, #{searchDetail.empName}) > 0
+					</if>
+					<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.empRetire)">
+						<choose>
+							<when test='searchDetail.empRetire eq "N".toString()'>
+								AND EMP_END IS NULL
+							</when>
+							<when test='searchDetail.empRetire eq "Y".toString()'>
+								AND EMP_END IS NOT NULL
+							</when>
+						</choose>
+					</if>
+				</if>
+		</if>	
+		</trim>
+	</sql>
+	
+	<sql id="wholeEmpSearchFrag">
+		WHERE EMP_END IS NULL
+		<if test="searchVO!=null">
+			<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchVO.searchAptCode)">
+				 AND INSTR(A.MEM_ID, #{searchVO.searchAptCode}) > 0
+			</if>
+			<if test="searchDetail!=null">
+					<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.empName)">
+						AND INSTR(EMP_NAME, #{searchDetail.empName}) > 0
+					</if>
+					<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.positionCode)">
+						AND INSTR(A.POSITION_CODE, #{searchDetail.positionCode}) > 0
+					</if>
+				</if>
+		</if>	
+	</sql>
+
+	<resultMap type="kr.or.anyapart.employee.vo.EmployeeVO" id="employeeMap" autoMapping="true">
+		<id property="memId" column="LICEMPID"/>
+		<association property="member" javaType="kr.or.anyapart.vo.MemberVO" autoMapping="true"></association>
+		<association property="position" javaType="kr.or.anyapart.employee.vo.PositionVO" autoMapping="true"></association>
+		<collection property="licenseList" ofType="kr.or.anyapart.employee.vo.LicenseVO" autoMapping="true">
+			<id property="memId" column="MEM_ID"/>
+			<id property="licCode" column="LIC_CODE"/>
+		</collection>
+	</resultMap>
+	<select id="selectEmployeeInfo" parameterType="kr.or.anyapart.employee.vo.EmployeeVO" resultMap="employeeMap">
+		SELECT A.MEM_ID LICEMPID
+		      , MEM_PASS
+		      , MEM_ROLE
+		      , MEM_NICK
+		      , APT_CODE
+		      , EMP_NAME
+		      , EMP_MAIL
+		      ,REGEXP_REPLACE(EMP_HP, '(02|.{3})(.+)(.{4})', '\1-\2-\3') EMP_HP
+		      , EMP_ZIP
+		      , EMP_ADD1
+		      , EMP_ADD2
+		      , EMP_ACCT
+		      , EMP_BANK
+		      , A.POSITION_CODE
+		      , B.POSITION_NAME
+		      , EMP_IMG
+		      , TO_CHAR(EMP_BIRTH, 'YYYY-MM-DD') EMP_BIRTH
+		      , REGEXP_REPLACE(EMP_TEL, '(02|.{3})(.+)(.{4})', '\1-\2-\3') EMP_TEL
+		      , TO_CHAR(EMP_START, 'YYYY-MM-DD') EMP_START
+		      , TO_CHAR(EMP_END, 'YYYY-MM-DD') EMP_END
+		      , EMP_OFF
+		      , D.LIC_CODE
+		      , E.CODE_NAME LIC_NAME
+		  FROM EMPLOYEE A LEFT OUTER JOIN POSITION B ON(A.POSITION_CODE=B.POSITION_CODE)
+		       LEFT OUTER JOIN MEMBER C ON(A.MEM_ID=C.MEM_ID)
+		       LEFT OUTER JOIN LICENSE D ON(A.MEM_ID=D.MEM_ID)
+		       LEFT OUTER JOIN COMMONCODE E ON(D.LIC_CODE=E.CODE_ID)
+		 WHERE A.MEM_ID = #{memId}
+	</select>
+	
+	<select id="selectEmployeeInfoList" parameterType="kr.or.anyapart.vo.PagingVO" resultMap="employeeMap">
+		SELECT E.* 
+		  FROM(
+		    SELECT D.*, ROWNUM RNUM
+		      FROM (SELECT A.MEM_ID
+		                   ,EMP_NAME
+		                   ,A.POSITION_CODE
+		                   ,POSITION_NAME
+		                   ,TO_CHAR(EMP_BIRTH, 'YYYY-MM-DD') EMP_BIRTH
+		                   ,REGEXP_REPLACE(EMP_HP, '(02|.{3})(.+)(.{4})', '\1-\2-\3') EMP_HP
+		                   ,TO_CHAR(EMP_START, 'YYYY-MM-DD') EMP_START
+		                   ,TO_CHAR(EMP_END, 'YYYY-MM-DD') EMP_END
+		                   ,EMP_MAIL
+		              FROM EMPLOYEE A LEFT OUTER JOIN POSITION B ON(A.POSITION_CODE=B.POSITION_CODE)
+		                    LEFT OUTER JOIN MEMBER C ON(A.MEM_ID=C.MEM_ID)
+					<include refid="wholeEmpSearchFrag"/>
+		          ORDER BY A.MEM_ID DESC
+		    ) D
+		)E
+		WHERE RNUM BETWEEN #{startRow} AND #{endRow}
+	</select>
+	
+	<select id="selectEmployeeChangeList" parameterType="kr.or.anyapart.vo.PagingVO" resultMap="employeeMap">
+		SELECT E.* 
+		  FROM(
+		    SELECT D.*, ROWNUM RNUM
+		      FROM (SELECT A.MEM_ID
+		                   ,EMP_NAME
+		                   ,A.POSITION_CODE
+		                   ,POSITION_NAME
+		                   ,TO_CHAR(EMP_BIRTH, 'YYYY-MM-DD') EMP_BIRTH
+		                   ,REGEXP_REPLACE(EMP_HP, '(02|.{3})(.+)(.{4})', '\1-\2-\3') EMP_HP
+		                   ,TO_CHAR(EMP_START, 'YYYY-MM-DD') EMP_START
+		                   ,TO_CHAR(EMP_END, 'YYYY-MM-DD') EMP_END
+		                   ,EMP_MAIL
+		              FROM EMPLOYEE A LEFT OUTER JOIN POSITION B ON(A.POSITION_CODE=B.POSITION_CODE)
+		                    LEFT OUTER JOIN MEMBER C ON(A.MEM_ID=C.MEM_ID)
+					<include refid="changeEmpSearchFrag"/>
+		          ORDER BY  EMP_END DESC, A.MEM_ID DESC
+		    ) D
+		)E
+		WHERE RNUM BETWEEN #{startRow} AND #{endRow}
+	</select>
+
+	<select id="selectPayInfoList" parameterType="kr.or.anyapart.vo.PagingVO" resultMap = "employeeMap">
+			SELECT E.* 
+			  FROM(
+			    SELECT D.*, ROWNUM RNUM
+			      FROM (SELECT A.MEM_ID 
+			                   ,EMP_NAME
+			                   ,A.POSITION_CODE
+			                   ,B.POSITION_NAME
+			                   ,A.EMP_BANK
+			                   ,EMP_ACCT
+			                   ,TO_CHAR(EMP_BIRTH, 'YYYY-MM-DD') EMP_BIRTH
+			                   ,EMP_HP
+			                   ,TO_CHAR(EMP_START, 'YYYY-MM-DD') EMP_START
+			              FROM EMPLOYEE A LEFT OUTER JOIN POSITION B ON(A.POSITION_CODE=B.POSITION_CODE)
+			                    LEFT OUTER JOIN MEMBER C ON(A.MEM_ID=C.MEM_ID)
+			             <include refid="wholeEmpSearchFrag"/>
+			          ORDER BY A.MEM_ID DESC
+			    ) D
+			)E
+			WHERE RNUM BETWEEN #{startRow} AND #{endRow}
+	</select>
+
+
+	<select id="selectEmployeeInfoCount" parameterType="kr.or.anyapart.vo.PagingVO" resultType="int">
+		SELECT COUNT(*)
+		FROM EMPLOYEE A LEFT OUTER JOIN POSITION B ON(A.POSITION_CODE=B.POSITION_CODE)
+		                LEFT OUTER JOIN MEMBER C ON(A.MEM_ID=C.MEM_ID)
+			<include refid="wholeEmpSearchFrag"/>
+	</select>
+	
+	<select id="selectEmployeeChangeCount" parameterType="kr.or.anyapart.vo.PagingVO" resultType="int">
+		SELECT COUNT(*)
+		FROM EMPLOYEE A LEFT OUTER JOIN POSITION B ON(A.POSITION_CODE=B.POSITION_CODE)
+		                LEFT OUTER JOIN MEMBER C ON(A.MEM_ID=C.MEM_ID)
+			<include refid="changeEmpSearchFrag"/>
+	</select>
+	
+	<select id="getEmployeeMaxId" parameterType="String" resultType="kr.or.anyapart.employee.vo.EmployeeVO">
+	      WITH EMPTB AS(
+				SELECT LPAD((NVL(MAX(SUBSTR(EMPLOYEE.MEM_ID,7,3)), 0)+1),3,'0') MEM_ID
+                       ,APT_CODE
+                  FROM EMPLOYEE
+                WHERE APT_CODE = #{aptCode}
+                GROUP BY APT_CODE
+			)
+            
+        SELECT EMPTB.APT_CODE||'E'||EMPTB.MEM_ID MEM_ID
+			FROM EMPLOYEE RIGHT OUTER JOIN EMPTB ON(EMPLOYEE.MEM_ID = EMPTB.MEM_ID)
+	</select>
+	
+	<select id="selectLicenseList" resultType="kr.or.anyapart.employee.vo.LicenseVO">
+		SELECT CODE_ID "licCode"
+		       ,CODE_NAME "licName"
+		  FROM COMMONCODE
+		 WHERE CODE='LIC_CODE'
+	</select>
+	
+	<select id="selectPositionList" resultType="kr.or.anyapart.employee.vo.PositionVO">
+		SELECT POSITION_CODE
+			   ,POSITION_NAME
+			   ,POSITION_OFF
+		  FROM POSITION
+	</select>
+	
+	<select id="selectRoleList" resultType="kr.or.anyapart.vo.CodeVO">
+		 SELECT CODE_ID
+		       ,CODE_NAME
+		  FROM COMMONCODE
+		 WHERE CODE='MEM_ROLE'
+		   AND CODE_NAME LIKE '관리%'
+	</select>
+	
+	<select id="selectEmployeeList" parameterType="String" resultMap="employeeMap">
+	    SELECT A.MEM_ID
+	           ,EMP_NAME
+	           ,B.POSITION_NAME "POSITION_NAME"
+	           ,B.POSITION_CODE
+	           ,B.POSITION_PAY
+	           ,A.EMP_BANK
+	           ,EMP_ACCT
+	      FROM EMPLOYEE A LEFT OUTER JOIN POSITION B ON(A.POSITION_CODE=B.POSITION_CODE)
+	            LEFT OUTER JOIN MEMBER C ON(A.MEM_ID=C.MEM_ID)
+	            WHERE APT_CODE=#{aptCode}
+	              AND EMP_END IS NULL
+	     ORDER BY A.EMP_NAME ASC
+	</select>
+	
+	<select id="selectBankList" resultType="kr.or.anyapart.vo.BankCodeVO">
+		SELECT BANK_CODE
+			   ,BANK_NAME
+		  FROM BANK
+	</select>
+	
+	<insert id="insertEmpWebInfo" parameterType="kr.or.anyapart.vo.MemberVO">
+		INSERT INTO MEMBER(
+			MEM_ID
+			,MEM_NICK
+			,MEM_PASS
+			,MEM_ROLE
+			,MEM_DELETE
+		) VALUES(
+		 #{memId, jdbcType=VARCHAR}
+		, #{memNick, jdbcType=VARCHAR}
+		, #{memPass, jdbcType=VARCHAR}
+		, #{memRole, jdbcType=VARCHAR}
+		, 'N'
+		)
+	</insert>
+
+	<insert id="insertEmpOfficeInfo" parameterType="kr.or.anyapart.employee.vo.EmployeeVO">
+		INSERT INTO employee (
+		     MEM_ID
+			,APT_CODE
+			,EMP_NAME
+			,EMP_MAIL
+			,EMP_HP
+			,EMP_ZIP
+			,EMP_ADD1
+			,EMP_ADD2
+			,EMP_ACCT
+			,POSITION_CODE
+			,EMP_IMG
+			,EMP_BIRTH
+			,EMP_TEL
+			,EMP_START
+			,EMP_END
+			,EMP_OFF
+			,EMP_BANK
+		) VALUES (
+			 #{memId, jdbcType=VARCHAR}
+			, #{aptCode, jdbcType=VARCHAR}
+			, #{empName, jdbcType=VARCHAR}
+			, #{empMail, jdbcType=VARCHAR}
+			, #{empHp, jdbcType=VARCHAR}
+			, #{empZip, jdbcType=VARCHAR}
+			, #{empAdd1, jdbcType=VARCHAR}
+			, #{empAdd2, jdbcType=VARCHAR}
+			, #{empAcct, jdbcType=VARCHAR}
+			, #{positionCode, jdbcType=VARCHAR}
+			, #{empImg, jdbcType=VARCHAR}
+			, #{empBirth, jdbcType=DATE}
+			, #{empTel, jdbcType=VARCHAR}
+			, #{empStart, jdbcType=DATE}
+			, #{empEnd, jdbcType=DATE}
+			, #{empOff, jdbcType=NUMERIC}
+			, #{empBank, jdbcType=VARCHAR}
+		)
+	</insert>
+	<update id="deleteEmployee" parameterType="kr.or.anyapart.employee.vo.EmployeeVO">
+		UPDATE EMPLOYEE
+		SET
+		 EMP_IMG = null,
+		 EMP_END = #{empEnd, jdbcType=DATE}
+		WHERE MEM_ID = #{memId, jdbcType=VARCHAR} 
+	</update>
+	
+	<update id="updateEmployeeMemInfo" parameterType="kr.or.anyapart.vo.MemberVO">
+		UPDATE MEMBER
+		  SET 
+	        MEM_ROLE =  #{memRole, jdbcType=VARCHAR}
+		   , MEM_NICK = #{memNick, jdbcType=VARCHAR}
+	    WHERE MEM_ID = #{memId, jdbcType=VARCHAR} 	   
+	</update>
+	
+	<update id="updateEmployeeEmpInfo" parameterType="kr.or.anyapart.employee.vo.EmployeeVO">
+		UPDATE EMPLOYEE
+		  SET 
+	        EMP_NAME =  #{empName, jdbcType=VARCHAR}
+	      , EMP_MAIL = #{empMail, jdbcType=VARCHAR}
+	      , EMP_HP = #{empHp, jdbcType=VARCHAR}
+	      , EMP_ZIP = #{empZip, jdbcType=VARCHAR}
+	      , EMP_ADD1 = #{empAdd1, jdbcType=VARCHAR}
+	      , EMP_ADD2 = #{empAdd2, jdbcType=VARCHAR}
+	      , POSITION_CODE = #{positionCode, jdbcType=VARCHAR}
+	      <if test="@org.apache.commons.lang3.StringUtils@isNotBlank(empImg)">
+	      , EMP_IMG = #{empImg, jdbcType=VARCHAR}
+	      </if>
+	      , EMP_BIRTH =  #{empBirth, jdbcType=DATE}
+	      , EMP_TEL =  #{empTel, jdbcType=VARCHAR}
+	      , EMP_START = #{empStart, jdbcType=DATE}
+	      , EMP_END =  #{empEnd, jdbcType=DATE}
+	      , EMP_OFF = #{empOff, jdbcType=NUMERIC}
+		WHERE MEM_ID = #{memId, jdbcType=VARCHAR} 
+	</update>
+	
+	<update id="removeEmployeeCancel" parameterType="kr.or.anyapart.employee.vo.EmployeeVO">
+		UPDATE EMPLOYEE
+		   SET EMP_END = null
+		 WHERE MEM_ID = #{memId, jdbcType=VARCHAR}
+	</update>
+</mapper>

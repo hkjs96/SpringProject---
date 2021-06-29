@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.anyapart.employee.dao.OffDAO">
+	<sql id="searchFrag">
+		<trim prefix=" WHERE" prefixOverrides="AND">
+		<if test="searchVO!=null">
+			<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchVO.searchAptCode)">
+				 AND INSTR(A.MEM_ID, #{searchVO.searchAptCode}) > 0
+			</if>
+			<if test="searchDetail!=null">
+					<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.searchOffS)
+					          and @org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.searchOffE)"
+					>
+						AND OFF_START BETWEEN #{searchDetail.searchOffS} AND #{searchDetail.searchOffE}
+					</if>
+										<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.searchOffS)
+					          and @org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.searchOffE)"
+					>
+						AND OFF_END BETWEEN #{searchDetail.searchOffS} AND #{searchDetail.searchOffE}
+					</if>
+					<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.offCode)">
+						AND INSTR(OFF_CODE, #{searchDetail.offCode}) > 0
+					</if>
+				</if>
+			</if>	
+		</trim>
+	</sql>
+
+	<resultMap type="kr.or.anyapart.employee.vo.OffVO" id="offMap" autoMapping="true">
+		<id property="offNo" column="EMPOFFNO"/>
+		<association property="employee" javaType="kr.or.anyapart.employee.vo.EmployeeVO" autoMapping="true"></association>
+		<association property="position" javaType="kr.or.anyapart.employee.vo.PositionVO" autoMapping="true"></association>
+		<association property="codeVO" javaType="kr.or.anyapart.vo.CodeVO" autoMapping="true"></association>
+	</resultMap>
+	
+	<select id="selectOffList" parameterType="kr.or.anyapart.vo.PagingVO" resultMap="offMap">
+		SELECT G.*
+		FROM(
+		  SELECT F.*, ROWNUM RNUM
+            FROM (
+                    SELECT D.*, E.CODE_NAME
+                    FROM (SELECT OFF_NO EMPOFFNO
+                                  ,OFF_CODE 
+                                  ,A.MEM_ID
+                                  ,POSITION_NAME
+                                  ,EMP_NAME
+                                  ,TO_CHAR(OFF_START, 'YYYY-MM-DD') OFF_START
+                                  ,TO_CHAR(OFF_END, 'YYYY-MM-DD') OFF_END
+                                  ,OFF_CONTENT
+                                   ,OFF_USE
+		   						   ,OFF_REMAIN
+                                  ,EMP_OFF 
+                            FROM EMPLOYEE A RIGHT OUTER JOIN OFF B ON(A.MEM_ID=B.MEM_ID)
+                            LEFT OUTER JOIN POSITION C ON(A.POSITION_CODE=C.POSITION_CODE)
+                            <include refid="searchFrag"/>
+                        )D 
+                     LEFT OUTER JOIN COMMONCODE E ON (D.OFF_CODE=E.CODE_ID)
+                     ORDER BY EMPOFFNO DESC
+            ) F 
+            ORDER BY RNUM ASC
+		)G
+		WHERE RNUM BETWEEN #{startRow} AND #{endRow} 
+	
+	</select>
+
+	<select id="selectOffCount" parameterType="kr.or.anyapart.vo.PagingVO" resultType="int">
+		SELECT COUNT(*)
+		FROM OFF A
+		<include refid="searchFrag"/>
+	</select>
+	
+	<select id="selectOffOption" resultType="kr.or.anyapart.vo.CodeVO">
+		SELECT CODE_ID 
+		       ,CODE_NAME 
+		  FROM COMMONCODE
+		 WHERE CODE='OFF_CODE'
+	</select>
+	
+	<insert id="insertOff" parameterType="kr.or.anyapart.employee.vo.OffVO">
+		<selectKey order="BEFORE" keyProperty="offNo" resultType="int">
+			SELECT NVL(MAX(OFF_NO), 0)+1
+			FROM OFF
+		</selectKey>
+		INSERT INTO OFF (
+						    OFF_NO
+						    ,OFF_CODE
+						    ,OFF_CONTENT
+						    ,OFF_START
+						    ,OFF_END
+						    ,OFF_USE
+						    ,OFF_REMAIN
+						    ,MEM_ID
+						) VALUES (
+						  #{offNo, jdbcType=NUMERIC}
+						, #{offCode, jdbcType=VARCHAR}
+						, #{offContent, jdbcType=VARCHAR}
+						, #{offStart, jdbcType=DATE}
+						, #{offEnd, jdbcType=DATE}
+						, #{offUse, jdbcType=VARCHAR}
+						, #{offRemain, jdbcType=VARCHAR}
+						, #{memId, jdbcType=VARCHAR}
+						)
+	</insert>
+	
+	<select id="selectOff" parameterType="kr.or.anyapart.employee.vo.OffVO" resultMap="offMap">
+		SELECT OFF_NO EMPOFFNO
+		      ,OFF_CODE 
+		      ,A.MEM_ID
+		      ,POSITION_NAME
+		      ,EMP_NAME
+		      ,TO_CHAR(OFF_START, 'YYYY-MM-DD') OFF_START
+		      ,TO_CHAR(OFF_END, 'YYYY-MM-DD') OFF_END
+		      ,OFF_CONTENT
+		      ,OFF_USE
+		      ,OFF_REMAIN
+		      ,EMP_OFF 
+		  FROM EMPLOYEE A RIGHT OUTER JOIN OFF B ON(A.MEM_ID=B.MEM_ID)
+		  LEFT OUTER JOIN POSITION C ON(A.POSITION_CODE=C.POSITION_CODE)
+		 WHERE OFF_NO= #{offNo}
+	</select>
+	
+	<update id="updateOff" parameterType="kr.or.anyapart.employee.vo.OffVO">
+		UPDATE off
+   		   SET
+		   OFF_CODE = #{offCode, jdbcType=VARCHAR}
+		  , OFF_CONTENT = #{offContent, jdbcType=VARCHAR}
+		  , OFF_START = #{offStart, jdbcType=DATE}
+		  , OFF_END = #{offEnd, jdbcType=DATE}
+		  , OFF_USE = #{offUse, jdbcType=VARCHAR}
+		  , OFF_REMAIN = #{offRemain, jdbcType=VARCHAR}
+		 WHERE OFF_NO=#{offNo}
+	</update>
+	
+	<delete id="deleteOff" parameterType="kr.or.anyapart.employee.vo.OffVO">
+		DELETE FROM OFF
+		WHERE OFF_NO=#{offNo}	
+	</delete>
+	
+	<select id="selectNowOff" parameterType="kr.or.anyapart.employee.vo.OffVO" resultType="String">
+		SELECT EMP_OFF
+		  FROM EMPLOYEE
+		 WHERE MEM_ID=#{memId}
+	</select>
+	
+	<update id="updateEmpOff" parameterType="kr.or.anyapart.employee.vo.OffVO">
+		UPDATE EMPLOYEE
+		   SET EMP_OFF = #{offRemain, jdbcType=VARCHAR}
+		 WHERE MEM_ID = #{memId}
+	</update>
+	
+	<update id="updateOffAfterDel" parameterType="kr.or.anyapart.employee.vo.EmployeeVO">
+		UPDATE EMPLOYEE
+		   SET EMP_OFF = #{empOff, jdbcType=VARCHAR}
+		 WHERE MEM_ID = #{memId}
+	</update>
+</mapper>

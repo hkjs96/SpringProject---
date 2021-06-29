@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE tiles-definitions PUBLIC "-//Apache Software Foundation//DTD Tiles Configuration 3.0//EN" "http://tiles.apache.org/dtds/tiles-config_3_0.dtd" >
+<tiles-definitions>
+	<definition name="parentO" template="/WEB-INF/views/office/template.jsp">
+		<put-attribute name="preScript" value="/includeeOffice/preScript.jsp"/>
+		<put-attribute name="topMenu" value="/includeeOffice/topMenu.jsp"/>
+		<put-attribute name="leftMenu" value="/includeeOffice/leftMenu.jsp"/>
+		<put-attribute name="footer" value="/includeeOffice/footer.jsp"/>
+	</definition>
+
+	<definition name="indexO" extends="parentO">
+		<put-attribute name="contents" value="/WEB-INF/views/office/indexO.jsp"/>
+	</definition>
+	<definition name="loginO" extends="parentO">
+		<put-attribute name="contents" value="/WEB-INF/views/office/loginO.jsp"/>
+	</definition>
+	<!-- 	회계관리 -->
+	<definition name="account/*" extends="parentO">
+		<put-attribute name="contents" value="/WEB-INF/views/office/account/{1}.jsp"/>
+	</definition>
+	<!-- 	전자결재 -->
+	<definition name="approval/*" extends="parentO">
+		<put-attribute name="contents" value="/WEB-INF/views/office/approval/{1}.jsp"/>
+	</definition>
+	<!-- 	자산관리 -->
+	<definition name="asset/*" extends="parentO">
+		<put-attribute name="contents" value="/WEB-INF/views/office/asset/{1}.jsp"/>
+	</definition>
+	<!-- 	차량관리 -->
+	<definition name="carO/*" extends="parentO">
+		<put-attribute name="contents" value="/WEB-INF/views/office/carO/{1}.jsp"/>
+	</definition>
+	<!-- 	공사/수선관리 -->
+	<definition name="construction/*" extends="parentO">
+		<put-attribute name="contents" value="/WEB-INF/views/office/construction/{1}.jsp"/>
+	</definition>
+	<!-- 	계약관리 -->
+	<definition name="contract/*" extends="parentO">
+		<put-attribute name="contents" value="/WEB-INF/views/office/contract/{1}.jsp"/>
+	</definition>
+	<!-- 	일반문서함 -->
+	<definition name="document/*" extends="parentO">
+		<put-attribute name="contents" value="/WEB-INF/views/office/document/{1}.jsp"/>
+	</definition>
+	<!-- 	인사관리 -->
+	<definition name="employee/*" extends="parentO">
+		<put-attribute name="contents" value="/WEB-INF/views/office/employee/{1}.jsp"/>
+	</definition>
+	<!-- 	근태관리 -->
+	<definition name="off/*" extends="parentO">
+		<put-attribute name="contents" value="/WEB-INF/views/office/off/{1}.jsp"/>
+	</definition>
+	<!-- 	검침관리 -->
+	<definition name="meter/*" extends="parentO">
+		<put-attribute name="contents" value="/WEB-INF/views/office/meter/{1}.jsp"/>
+	</definition>
+	<!-- 	부과관리 -->
+	<definition name="cost/*" extends="parentO">
+		<put-attribute name="contents" value="/WEB-INF/views/office/cost/{1}.jsp"/>
+	</definition>
+	<!-- 	수납관리 -->
+	<definition name="receipt/*" extends="parentO">
+		<put-attribute name="contents" value="/WEB-INF/views/office/receipt/{1}.jsp"/>
+	</definition>
+	<!-- 	입주민관리 -->
+	<definition name="resident/*" extends="parentO">
+		<put-attribute name="contents" value="/WEB-INF/views/office/resident/{1}.jsp"/>
+	</definition>
+	<!-- 	급여관리 -->
+	<definition name="payment/*" extends="parentO">
+		<put-attribute name="contents" value="/WEB-INF/views/office/payment/{1}.jsp"/>
+	</definition>
+	<!-- 	정산관리 -->
+	<definition name="severance/*" extends="parentO">
+		<put-attribute name="contents" value="/WEB-INF/views/office/severance/{1}.jsp"/>
+	</definition>
+	<!--  단지 설정 관리 -->
+	<definition name="setting/*" extends="parentO">
+		<put-attribute name="contents" value="/WEB-INF/views/office/setting/{1}.jsp"/>
+	</definition>
+	<!-- 밴더와 소통 -->
+	<definition name="vendorO/*" extends="parentO">
+		<put-attribute name="contents" value="/WEB-INF/views/office/vendorO/{1}.jsp"/>
+	</definition>
+	<!-- 입주민 사이트 관리 -->
+	<definition name="website/**" extends="parentO">
+		<put-attribute name="contents" value="/WEB-INF/views/office/website/{1}.jsp"/>
+	</definition>
+	
+</tiles-definitions>
+

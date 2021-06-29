@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans:beans
+	xmlns="http://www.springframework.org/schema/mvc"
+	xmlns:beans="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:c="http://www.springframework.org/schema/c"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:p="http://www.springframework.org/schema/p"
+	xmlns:security="http://www.springframework.org/schema/security"
+	xmlns:mvc="http://www.springframework.org/schema/mvc"
+	xmlns:websocket="http://www.springframework.org/schema/websocket"
+	xsi:schemaLocation="http://www.springframework.org/schema/security http://www.springframework.org/schema/security/spring-security-4.2.xsd
+		http://www.springframework.org/schema/websocket http://www.springframework.org/schema/websocket/spring-websocket-4.3.xsd
+		http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc-4.3.xsd
+		http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-4.3.xsd">
+
+	<annotation-driven validator="validator">
+		<argument-resolvers>
+			<beans:bean
+				class="org.springframework.security.web.method.annotation.AuthenticationPrincipalArgumentResolver" />
+		</argument-resolvers>
+	</annotation-driven>
+
+	<default-servlet-handler />
+
+	<beans:bean id="IRVR"
+		class="org.springframework.web.servlet.view.InternalResourceViewResolver"
+		p:prefix="/WEB-INF/views/" p:suffix=".jsp" />
+
+	<beans:bean
+		class="org.springframework.web.servlet.view.tiles3.TilesConfigurer"
+		p:definitions="/WEB-INF/tiles/*.xml" />
+
+	<beans:bean id="TVR"
+		class="org.springframework.web.servlet.view.tiles3.TilesViewResolver"
+		p:order="2" />
+
+	<beans:bean id="BNVR"
+		class="org.springframework.web.servlet.view.BeanNameViewResolver"
+		p:order="1" />
+
+	<beans:bean id="jsonView"
+		class="org.springframework.web.servlet.view.json.MappingJackson2JsonView" />
+
+	<beans:bean id="downloadView"
+		class="kr.or.anyapart.commonsweb.view.DownloadView" />
+
+	<beans:bean id="draftAttDownView"
+		class="kr.or.anyapart.approval.view.draftAttDownView" />
+
+	<beans:bean id="svdownloadView"
+		class="kr.or.anyapart.commonsweb.view.SvDownloadView" />
+
+	<beans:bean id="excelTmplDownloadView"
+		class="kr.or.anyapart.commonsweb.view.ExcelTmplDownloadView" /><!-- 이경륜:엑셀양식다운로드용 -->
+
+	<context:component-scan
+		base-package="kr.or.anyapart" use-default-filters="false">
+		<context:include-filter type="annotation"
+			expression="org.springframework.stereotype.Controller" />
+		<context:include-filter type="annotation"
+			expression="org.springframework.web.bind.annotation.ControllerAdvice" />
+	</context:component-scan>
+
+	<!-- 이경륜 : testProject에 있던 예제 찬이가 넣어놔서 주석함 -->
+	<!-- <beans:bean class="org.springframework.web.servlet.handler.SimpleMappingExceptionResolver"> -->
+	<!-- <beans:property name="defaultErrorView" -->
+	<!-- value="errors/egovError" /> -->
+	<!-- <beans:property name="exceptionMappings"> -->
+	<!-- <beans:props> -->
+	<!-- <beans:prop -->
+	<!-- key="org.springframework.dao.DataAccessException">commons/errors/dataAccessFailure</beans:prop> -->
+	<!-- <beans:prop -->
+	<!-- key="org.springframework.transaction.TransactionException">commons/errors/transactionFailure</beans:prop> -->
+	<!-- <beans:prop -->
+	<!-- key="egovframework.rte.fdl.cmmn.exception.EgovBizException">commons/errors/egovError</beans:prop> -->
+	<!-- <beans:prop -->
+	<!-- key="org.springframework.security.AccessDeniedException">commons/errors/egovError</beans:prop> -->
+	<!-- </beans:props> -->
+	<!-- </beans:property> -->
+	<!-- </beans:bean> -->
+
+	<!-- i18n , l10n 지원 -->
+	<interceptors>
+		<interceptor>
+			<mapping path="/**" />
+			<beans:bean
+				class="org.springframework.web.servlet.i18n.LocaleChangeInterceptor"
+				p:paramName="lang" />
+		</interceptor>
+		<!-- <interceptor> -->
+		<!-- <mapping path="/**"/> -->
+		<!-- <exclude-mapping path="/login/**" /> -->
+		<!-- <exclude-mapping path="/css/**" /> -->
+		<!-- <exclude-mapping path="/js/**" /> -->
+		<!-- <exclude-mapping path="/fonts/**" /> -->
+		<!-- <exclude-mapping path="/images/**" /> -->
+		<!-- <exclude-mapping path="/includeeOffice/**" /> -->
+		<!-- <exclude-mapping path="/includeeResident/**" /> -->
+		<!-- <exclude-mapping path="/includeeVendor/**" /> -->
+		<!-- <beans:bean class="kr.or.anyapart.commons.interceptor.UserLoginCheckInterceptor" 
+			/> -->
+		<!-- </interceptor> -->
+	</interceptors>
+
+	<!-- 이경륜: webStudy06 코드에서 가져온 코드. 주석처리함 -->
+	<!-- <view-controller path="/guestBook.do" view-name="book/guestBook" /> -->
+	<!-- <view-controller path="/cmmn/validator.do" view-name="cmmn/validator"/> -->
+
+	<!-- For Pagination Tag -->
+	<beans:bean id="imageRenderer"
+		class="kr.or.anyapart.egovframework.example.cmmn.web.EgovImgPaginationRenderer" />
+	<!-- 부트스트랩을 적용한 기본 PageRenderer 들. -->
+	<beans:bean id="bootStrapOfficeTypePaginationRenderer"
+		class="kr.or.anyapart.egovframework.BootStrapOfficeTypePaginationRenderer" />
+	<beans:bean id="bootStrapResidentTypePaginationRenderer"
+		class="kr.or.anyapart.egovframework.BootStrapResidentTypePaginationRenderer" />
+	<beans:bean id="bootStrapVendorTypePaginationRenderer"
+		class="kr.or.anyapart.egovframework.BootStrapVendorTypePaginationRenderer" />
+
+	<beans:bean id="paginationManager"
+		class="egovframework.rte.ptl.mvc.tags.ui.pagination.DefaultPaginationManager">
+		<beans:property name="rendererType">
+			<beans:map>
+				<beans:entry key="image" value-ref="imageRenderer" />
+				<beans:entry key="bsOffice"
+					value-ref="bootStrapOfficeTypePaginationRenderer" />
+				<beans:entry key="bsResident"
+					value-ref="bootStrapResidentTypePaginationRenderer" />
+				<beans:entry key="bsVendor"
+					value-ref="bootStrapVendorTypePaginationRenderer" />
+			</beans:map>
+		</beans:property>
+	</beans:bean>
+	<!-- /For Pagination Tag -->
+
+	<!-- 이경륜: interceptor는 dispatcher servlet타기전에 작동함 -->
+	<!-- 이경륜: 요청 가로채서 db에 요청정보 insert하는 인터셉터 -->
+	<mvc:interceptors>
+		<mvc:interceptor>
+			<mvc:mapping path="/vendor/**" />
+			<mvc:mapping path="/office/**" />
+			<mvc:mapping path="/resident/**" />
+			<beans:bean
+				class="kr.or.anyapart.commons.interceptor.RequestLogCollectInterceptor" /> <!-- 사용할 인터셉트 결정 -->
+		</mvc:interceptor>
+	</mvc:interceptors>
+
+
+
+
+	<!-- 이경륜: 보호자원을 db에 등록하고 쓰지 않고 @PreAuthorized를 쓰고있기때문에 필요 -->
+	<!-- 추후 intercept로 security 관리시 수정되어야할 부분임 -->
+	<security:global-method-security
+		pre-post-annotations="enabled" proxy-target-class="true" />
+
+
+	<beans:bean id="echoHandler"
+		class="kr.or.anyapart.commonsweb.controller.EchoHandler" />
+		
+		<websocket:handlers>
+			<websocket:mapping handler="echoHandler" path="/Eco.do" />
+		</websocket:handlers>
+
+</beans:beans>
+
+

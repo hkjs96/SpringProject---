@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beansProjectDescription>
+	<version>1</version>
+	<pluginVersion><![CDATA[3.9.11.201912160804-RELEASE]]></pluginVersion>
+	<configSuffixes>
+		<configSuffix><![CDATA[xml]]></configSuffix>
+	</configSuffixes>
+	<enableImports><![CDATA[false]]></enableImports>
+	<configs>
+		<config>src/main/resources/kr/or/anyapart/spring/context-security.xml</config>
+	</configs>
+	<autoconfigs>
+		<config>src/main/resources/kr/or/anyapart/spring/context-datasource.xml</config>
+		<config>src/main/resources/kr/or/anyapart/spring/context-mapper.xml</config>
+		<config>src/main/resources/kr/or/anyapart/spring/context-transaction.xml</config>
+		<config>src/main/resources/kr/or/anyapart/spring/context-quartz.xml</config>
+		<config>src/main/resources/kr/or/anyapart/spring/context-aspect.xml</config>
+		<config>src/main/resources/kr/or/anyapart/spring/context-common.xml</config>
+		<config>src/main/resources/kr/or/anyapart/spring/context-properties.xml</config>
+		<config>src/main/resources/kr/or/anyapart/spring/context-idgen.xml</config>
+		<config>src/main/resources/kr/or/anyapart/spring/context-message.xml</config>
+		<config>src/main/resources/kr/or/anyapart/spring/context-validator.xml</config>
+		<config>src/main/webapp/WEB-INF/spring/appServlet/servlet-context.xml</config>
+	</autoconfigs>
+	<configSets>
+	</configSets>
+</beansProjectDescription>

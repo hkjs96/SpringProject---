@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.anyapart.community.dao.CommunityDAO">
+
+	<sql id="searchFrag">
+		<where>
+			APT_CODE = #{searchVO.searchAptCode }
+			<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.cmntCode)">
+				AND CMNT_CODE = #{searchDetail.cmntCode}
+			</if>
+		</where>
+	</sql>
+
+	<select id="countCommunity" parameterType="kr.or.anyapart.vo.PagingVO" resultType="int">
+		SELECT COUNT(*)
+		FROM
+		    COMMUNITY A LEFT OUTER JOIN COMMONCODE B ON (A.CMNT_CODE = B.CODE_ID)
+		<include refid="searchFrag" />		   
+	</select>
+
+	<select id="retrieveCommunityList" parameterType="kr.or.anyapart.vo.PagingVO" resultType="kr.or.anyapart.community.vo.CommunityVO">
+		SELECT B.*
+			FROM (
+				SELECT A.*, ROWNUM RNUM
+					FROM ( 
+						SELECT
+						    CMNT_NO,
+						    B.CODE_NAME AS CMNT_CODE,
+						    CMNT_NAME,
+						    CMNT_SIZE,
+						    CMNT_CAPA,
+						    CMNT_LIMIT,
+						    SUBSTR(CMNT_OPEN,1,2)||':'||SUBSTR(CMNT_OPEN,3,4) AS CMNT_OPEN,
+				    		SUBSTR(CMNT_CLOSE,1,2)||':'||SUBSTR(CMNT_CLOSE,3,4) AS CMNT_CLOSE,
+						    CMNT_DESC,
+						    APT_CODE
+						FROM
+						    COMMUNITY A LEFT OUTER JOIN COMMONCODE B ON (A.CMNT_CODE = B.CODE_ID)
+						<include refid="searchFrag" />
+						ORDER BY CMNT_NO DESC
+					) A
+			) B
+		<![CDATA[		
+			WHERE RNUM >= #{startRow} AND RNUM <= #{endRow}
+		]]>
+	</select>
+
+	<insert id="insertCommunity" parameterType="kr.or.anyapart.community.vo.CommunityVO">
+		<selectKey resultType="int" keyProperty="cmntNo" order="BEFORE">
+			SELECT MAX(CMNT_NO)+1
+			FROM COMMUNITY
+<!-- 			WHERE APT_CODE = #{aptCode} -->
+		</selectKey>
+		INSERT INTO community (
+		    CMNT_NO,
+		    CMNT_CODE,
+		    CMNT_NAME,
+		    CMNT_SIZE,
+		    CMNT_CAPA,
+		    CMNT_LIMIT,
+		    CMNT_OPEN,
+		    CMNT_CLOSE,
+		    CMNT_DESC,
+		    APT_CODE
+		) VALUES (
+		   #{cmntNo, jdbcType=NUMERIC}
+			, #{cmntCode, jdbcType=VARCHAR}
+			, #{cmntName, jdbcType=VARCHAR}
+			, #{cmntSize, jdbcType=NUMERIC}
+			, #{cmntCapa, jdbcType=NUMERIC}
+			, #{cmntLimit, jdbcType=NUMERIC}
+			, #{cmntOpen, jdbcType=VARCHAR}
+			, #{cmntClose, jdbcType=VARCHAR}
+			, #{cmntDesc, jdbcType=CLOB}
+			, #{aptCode, jdbcType=VARCHAR}
+		)
+	</insert>
+
+	<select id="retrieveCommunity" parameterType="kr.or.anyapart.community.vo.CommunityVO" resultType="kr.or.anyapart.community.vo.CommunityVO">
+		SELECT
+		    CMNT_NO,
+		    B.CODE_NAME AS CMNT_CODE,
+		    CMNT_NAME,
+		    CMNT_SIZE,
+		    CMNT_CAPA,
+		    CMNT_LIMIT,
+		    SUBSTR(CMNT_OPEN,1,2)||':'||SUBSTR(CMNT_OPEN,3,4) AS CMNT_OPEN,
+    		SUBSTR(CMNT_CLOSE,1,2)||':'||SUBSTR(CMNT_CLOSE,3,4) AS CMNT_CLOSE,
+		    CMNT_DESC,
+		    APT_CODE
+		FROM
+		    COMMUNITY A LEFT OUTER JOIN COMMONCODE B ON (A.CMNT_CODE = B.CODE_ID)
+		WHERE APT_CODE = #{aptCode } AND CMNT_NO = #{cmntNo }
+	</select>
+	
+	<update id="updateCommunity" parameterType="kr.or.anyapart.community.vo.CommunityVO">
+		UPDATE COMMUNITY
+		    SET
+				CMNT_CODE = #{cmntCode}
+				, CMNT_NAME = #{cmntName}
+				, CMNT_SIZE = #{cmntSize}
+				, CMNT_CAPA = #{cmntCapa}
+				, CMNT_LIMIT = #{cmntLimit}
+				, CMNT_OPEN = #{cmntOpen}
+				, CMNT_CLOSE = #{cmntClose}
+				, CMNT_DESC = #{cmntDesc}
+		WHERE
+		    CMNT_NO = #{cmntNo} 
+		    AND   APT_CODE = #{aptCode}
+	</update>
+</mapper>

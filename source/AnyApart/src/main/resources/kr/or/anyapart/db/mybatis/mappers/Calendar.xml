@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.anyapart.calendar.dao.ICalendarDAO">
+
+<select id="selectRemodellingList" parameterType="kr.or.anyapart.vo.ScheduleVO" resultType="kr.or.anyapart.vo.ScheduleVO">
+	SELECT
+	    SCHD_NO,
+	    SCHD_TYPE,
+	    SCHD_TITLE,
+	    SCHD_CONTENT,
+	    TO_CHAR(SCHD_START, 'YYYY-MM-DD') SCHD_START,
+	    TO_CHAR(SCHD_END, 'YYYY-MM-DD') SCHD_END,
+	    APT_CODE
+	FROM SCHEDULE RIGHT OUTER JOIN REMODELLING ON(RMDL_TITLE=SCHD_CONTENT)
+	WHERE SCHD_TYPE='S004'
+    AND RMDL_YN = 'Y'
+    AND APT_CODE = #{aptCode}
+</select>
+
+<select id="selectAfterServiceList" parameterType="kr.or.anyapart.vo.ScheduleVO" resultType="kr.or.anyapart.vo.ScheduleVO">
+	SELECT
+	    SCHD_NO,
+	    SCHD_TYPE,
+	    SCHD_TITLE,
+	    SCHD_CONTENT,
+	    TO_CHAR(SCHD_START, 'YYYY-MM-DD') SCHD_START,
+	    TO_CHAR(SCHD_END, 'YYYY-MM-DD') SCHD_END,
+	    APT_CODE
+	FROM SCHEDULE 
+	WHERE SCHD_TYPE='S002' 
+	AND APT_CODE = #{aptCode}
+</select>
+
+<select id="selectAfterServiceListIndv" parameterType="kr.or.anyapart.vo.ScheduleVO" resultType="kr.or.anyapart.vo.ScheduleVO">
+	SELECT
+	    SCHD_NO,
+	    SCHD_TYPE,
+	    SCHD_TITLE,
+	    SCHD_CONTENT,
+	    TO_CHAR(SCHD_START, 'YYYY-MM-DD') SCHD_START,
+	    TO_CHAR(SCHD_END, 'YYYY-MM-DD') SCHD_END,
+	    APT_CODE
+	FROM SCHEDULE 
+	WHERE SCHD_TYPE='S003' 
+	AND APT_CODE = #{aptCode}
+</select>
+
+<select id="selectEventList" parameterType="kr.or.anyapart.vo.ScheduleVO" resultType="kr.or.anyapart.vo.ScheduleVO">
+	SELECT
+	    SCHD_NO,
+	    SCHD_TYPE,
+	    SCHD_TITLE,
+	    SCHD_CONTENT,
+	    TO_CHAR(SCHD_START, 'YYYY-MM-DD') SCHD_START,
+	    TO_CHAR(SCHD_END, 'YYYY-MM-DD') SCHD_END,
+	    APT_CODE
+	FROM SCHEDULE 
+	WHERE SCHD_TYPE='S001'
+	AND APT_CODE = #{aptCode}
+</select>
+
+<select id="selectCalendarView" parameterType="kr.or.anyapart.vo.ScheduleVO" resultType="kr.or.anyapart.vo.ScheduleVO">
+	SELECT
+	    SCHD_NO,
+	    SCHD_TYPE,
+	    SCHD_TITLE,
+	    SCHD_CONTENT,
+	    TO_CHAR(SCHD_START, 'YYYY-MM-DD') SCHD_START,
+	    TO_CHAR(SCHD_END, 'YYYY-MM-DD') SCHD_END
+	FROM SCHEDULE 
+	WHERE SCHD_NO = #{schdNo}
+</select>
+
+<delete id="removeApartEvent" parameterType="kr.or.anyapart.vo.ScheduleVO">
+	DELETE SCHEDULE
+	WHERE SCHD_NO = #{schdNo}
+</delete>
+
+<insert id="insertCalendarEvent" parameterType="kr.or.anyapart.vo.ScheduleVO">
+	<selectKey order="BEFORE" keyProperty="schdNo" resultType="int">
+		SELECT NVL(MAX(SCHD_NO),0)+1
+		FROM SCHEDULE
+	</selectKey>
+	
+	INSERT INTO schedule (
+	    schd_no,
+	    schd_type,
+	    schd_title,
+	    schd_content,
+	    schd_start,
+	    schd_end,
+	    apt_code
+	) VALUES (
+	    #{schdNo}
+	    , #{schdType}
+	    , #{schdTitle}
+	    , #{schdContent}
+	    , #{schdStart}
+	    , #{schdEnd}
+	    , #{aptCode}
+	)
+</insert>
+
+<update id="updateCalendarEvent" parameterType="kr.or.anyapart.vo.ScheduleVO">
+	UPDATE SCHEDULE
+	SET SCHD_TITLE = #{schdTitle}
+		, SCHD_CONTENT = #{schdContent}
+		, SCHD_START = #{schdStart}
+	    , SCHD_END = #{schdEnd}
+	WHERE SCHD_NO = #{schdNo} 
+</update>
+</mapper>

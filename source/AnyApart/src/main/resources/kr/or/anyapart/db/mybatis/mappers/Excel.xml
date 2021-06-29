@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.anyapart.commonsweb.dao.ExcelUploadDAO">
+<insert id="insertExcel" parameterType="kr.or.anyapart.servicecompany.vo.ServiceVO">
+   INSERT ALL 
+    <foreach collection="excelContent" item="item">
+    INTO SERVICECONTRACT (SVC_ID, SVC_START,SVC_END,SVC_DEPOSIT,APT_CODE) VALUES ( #{item.A} , SYSDATE, SYSDATE,#{item.B}, #{item.C})
+    </foreach>
+    SELECT* FROM DUAL
+</insert>
+</mapper>

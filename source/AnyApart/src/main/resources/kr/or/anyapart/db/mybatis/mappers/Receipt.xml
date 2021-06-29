@@ -1,0 +1,244 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.anyapart.receipt.dao.ReceiptDAO">
+	<sql id="moveoutWithClause">
+		WITH COSTTOTAL AS (
+			SELECT A.MEM_ID
+  				   ,B.COST_YEAR
+     			   ,B.COST_MONTH
+			       ,B.COST_NO
+			       ,COST_COMMON + COST_CLEANING + COST_SECURITY + COST_DISINFECT + COST_ELEVATOR COST_COMM_TOTAL
+			       ,COST_PARK + COST_COMM_HEAT + COST_INDV_HEAT + COST_COMM_HOTWATER + COST_INDV_HOTWATER + COST_COMM_ELEC + COST_INDV_ELEC + COST_COMM_WATER + COST_INDV_WATER + COST_AS + COST_LAS + COST_COUNCIL COST_INDV_TOTAL
+			  FROM RESIDENT A
+			RIGHT OUTER JOIN MAINTENANCECOST B ON (A.MEM_ID = B.MEM_ID)
+		)
+	</sql>
+	
+	<sql id="moveoutFromClause">
+		FROM RESIDENT A
+		LEFT OUTER JOIN COSTTOTAL B ON (A.MEM_ID = B.MEM_ID)
+		RIGHT OUTER JOIN RECEIPT C ON (B.COST_NO = C.COST_NO)
+		INNER JOIN COMMONCODE D ON (C.RECEIPT_METHOD = D.CODE_ID)
+	</sql>
+	
+	<sql id="moveoutWhereClause">
+		<if test="searchDetail!=null and @org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.memId)">
+			WHERE A.MEM_ID = #{searchDetail.memId}
+		</if>
+	</sql>
+	
+	<select id="selectMoveoutReceiptCount" parameterType="kr.or.anyapart.vo.PagingVO" resultType="int">
+		<include refid="moveoutWithClause"/>
+		SELECT COUNT(*)
+		<include refid="moveoutFromClause"/>
+		<include refid="moveoutWhereClause"/>
+	</select>
+	
+	
+	<select id="selectMoveoutReceiptList" parameterType="kr.or.anyapart.vo.PagingVO" resultType="kr.or.anyapart.receipt.vo.ReceiptVO">
+		<include refid="moveoutWithClause"/>
+		SELECT BB.*
+		FROM (
+				SELECT ROWNUM RNUM,
+				       AA.*
+				       FROM (
+							SELECT B.*        
+							       ,CODE_NAME	RECEIPT_METHOD
+							       ,RECEIPT_COST
+							       , TO_CHAR(RECEIPT_DATE, 'YYYY-MM-DD') RECEIPT_DATE
+							<include refid="moveoutFromClause"/>
+							<include refid="moveoutWhereClause"/>
+							ORDER BY RECEIPT_NO DESC) AA
+				)BB
+		WHERE RNUM BETWEEN #{startRow} AND #{endRow}
+	</select>
+	
+	<insert id="insertUnpaidCostForMoveout" parameterType="kr.or.anyapart.maintenancecost.vo.CostVO">
+		<selectKey order="BEFORE" keyProperty="receiptNo" resultType="int">
+			SELECT NVL(MAX(RECEIPT_NO), 0)+1
+			FROM RECEIPT
+		</selectKey>
+		
+		INSERT INTO receipt (
+		    RECEIPT_NO,
+		    COST_NO,
+		    RECEIPT_METHOD,
+		    RECEIPT_COST,
+		    RECEIPT_DATE,
+		    RECEIPT_YN
+		) VALUES (
+		    #{receiptNo, jdbcType=NUMERIC}
+			, #{costNo, jdbcType=NUMERIC}
+			, 'OFFICE'
+			, #{costTotal, jdbcType=NUMERIC}+#{lateFee, jdbcType=NUMERIC}
+			, sysdate
+			, 'Y'
+		)
+	</insert>
+	
+	<sql id="paidSearchFrag">
+	
+		<trim prefix=" WHERE" prefixOverrides="AND">
+			<if test="searchVO!=null and searchDetail!=null">
+				<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.dongStart)
+			 				  and @org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.hoStart) 
+			 				  and @org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.dongEnd)
+			 				  and @org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.hoEnd)">
+						AND E.HOUSE_CODE BETWEEN #{searchVO.searchAptCode}||'D'||#{searchDetail.dongStart}||'H'||#{searchDetail.hoStart}
+												 AND #{searchVO.searchAptCode}||'D'||#{searchDetail.dongEnd}||'H'||#{searchDetail.hoEnd}
+				</if>
+					
+				<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchVO.searchAptCode)">
+					 AND INSTR(C.MEM_ID, #{searchVO.searchAptCode}) > 0
+				</if>
+				
+				<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.receiptDateStart)
+						 and @org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.receiptDateEnd)">
+					AND A.RECEIPT_DATE BETWEEN TO_DATE(#{searchDetail.receiptDateStart}, 'yyyy-MM-dd') 
+										   AND TO_DATE(#{searchDetail.receiptDateEnd}, 'yyyy-MM-dd') 
+				</if>
+			</if>
+		</trim>
+	</sql>	
+	<!-- 수납관리-수납조회 -->
+	<select id="selectPaidReceiptCount" parameterType="kr.or.anyapart.vo.PagingVO" resultType="int">
+		SELECT COUNT(*)
+		  FROM RECEIPT A
+		  INNER JOIN RECEIPT_METHOD B ON (A.RECEIPT_METHOD = B.CODE_ID) 
+		  INNER JOIN V_MAINTENANCECOST C ON (A.COST_NO = C.COST_NO)
+		  LEFT OUTER JOIN RESIDENT D ON (C.MEM_ID = D.MEM_ID)
+		  LEFT OUTER JOIN HOUSE E ON (D.HOUSE_CODE = E.HOUSE_CODE)
+		<include refid="paidSearchFrag"/>
+		ORDER BY A.RECEIPT_DATE DESC, E.DONG ASC, E.HO ASC
+	</select>
+	
+	<select id="selectPaidReceiptList" parameterType="kr.or.anyapart.vo.PagingVO" resultType="kr.or.anyapart.receipt.vo.ReceiptVO">
+	  SELECT B.*
+		FROM (
+				 SELECT ROWNUM RNUM
+		               , A.*
+		          FROM (
+						SELECT A.RECEIPT_NO
+						       ,TO_CHAR(A.RECEIPT_DATE, 'yyyy-MM-dd') RECEIPT_DATE
+						       ,C.COST_YEAR
+						       ,C.COST_MONTH
+						       ,E.DONG
+						       ,E.HO
+						       ,D.RES_NAME
+						       ,C.COST_TOTAL
+						       <![CDATA[
+						       ,CASE WHEN C.COST_DUEDATE < A.RECEIPT_DATE THEN A.RECEIPT_COST - C.COST_TOTAL
+						             ELSE 0 END LATE_FEE
+						       ,A.RECEIPT_COST
+						       ,CASE WHEN C.COST_DUEDATE < A.RECEIPT_DATE THEN '납기후'
+						             ELSE '납기내' END RECEIPT_TYPE
+						       ,B.CODE_NAME RECEIPT_METHOD
+						       ]]>
+						  FROM RECEIPT A
+						  INNER JOIN RECEIPT_METHOD B ON (A.RECEIPT_METHOD = B.CODE_ID) 
+						  INNER JOIN V_MAINTENANCECOST C ON (A.COST_NO = C.COST_NO)
+						  LEFT OUTER JOIN RESIDENT D ON (C.MEM_ID = D.MEM_ID)
+						  LEFT OUTER JOIN HOUSE E ON (D.HOUSE_CODE = E.HOUSE_CODE)
+						<include refid="paidSearchFrag"/>
+						ORDER BY A.RECEIPT_DATE DESC, E.DONG ASC, E.HO ASC
+						) A
+			        )B
+			WHERE RNUM BETWEEN #{startRow} AND #{endRow}
+	</select>
+	
+	<sql id="unpaidListSearchFrag">
+		<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(dong)">
+			AND D.DONG = #{dong}
+		</if>
+		<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(ho)">
+			AND D.HO = #{ho}
+		</if>
+		<if test="costYear!=null">
+			AND COST_YEAR = #{costYear}
+		</if>
+		<if test="costMonth!=null">
+			AND COST_MONTH = #{costMonth}
+		</if>
+	</sql>
+	<select id="selectUnpaidReceiptList" parameterType="kr.or.anyapart.receipt.vo.ReceiptVO" resultType="kr.or.anyapart.maintenancecost.vo.CostVO">
+		SELECT TBLD.COST_NO
+		       ,SUBSTR(TBLA.CDONGHO,1,4) AS DONG
+		       ,SUBSTR(TBLA.CDONGHO,5) AS HO
+		       ,TBLD.COST_YEAR AS COST_YEAR
+		       ,TBLD.COST_MONTH AS COST_MONTH
+		       ,TBLC.RES_NAME AS RES_NAME
+		       ,TBLC.MEM_ID AS MEM_ID
+		       ,TBLA.CAMT AS COST_TOTAL
+		       ,TBLA.LATE_FEE AS LATE_FEE
+		       ,TBLA.CAMT + TBLA.LATE_FEE AS COST_TOTAL_PLUS_LATE
+		       ,TRUNC(SYSDATE - TBLD.COST_DUEDATE) LATE_DAY_CNT
+		       ,CASE WHEN TBLC.RES_MOVEOUT IS NULL THEN 'STAY'
+		            WHEN TBLC.RES_MOVEOUT IS NOT NULL THEN 'OUT'
+		            ELSE NULL END RES_TYPE
+		  FROM (SELECT 
+		               D.DONG||D.HO AS CDONGHO
+		              ,COST_DUEDATE AS CPERIOD
+		              ,COUNT(*) AS CNT
+		              ,SUM(COST_TOTAL) AS CAMT
+		              <![CDATA[
+		              ,SUM(CASE WHEN COST_DUEDATE < SYSDATE 
+		                   THEN ROUND(((COST_TOTAL)* 0.15 * TO_NUMBER((SYSDATE-COST_DUEDATE)) / 365))
+		                   ELSE 0 END) AS LATE_FEE
+		              ]]>
+		          FROM RECEIPT A
+		         RIGHT OUTER JOIN V_MAINTENANCECOST B ON (A.COST_NO = B.COST_NO)
+		         INNER JOIN RESIDENT C ON (B.MEM_ID = C.MEM_ID)
+		         INNER JOIN HOUSE D ON (C.HOUSE_CODE = D.HOUSE_CODE)
+		         WHERE A.RECEIPT_NO IS NULL
+		           AND INSTR(B.MEM_ID, #{aptCode})>0
+		           AND ADD_MONTHS( TRUNC(SYSDATE,'MM'), 1 ) != COST_DUEDATE
+		           <include refid="unpaidListSearchFrag"/>
+		         GROUP BY ROLLUP(D.DONG||D.HO,COST_DUEDATE)) TBLA
+		LEFT OUTER JOIN HOUSE TBLB ON (TBLB.HOUSE_CODE = #{aptCode}||'D'||SUBSTR(TBLA.CDONGHO,1,4)||'H'||SUBSTR(TBLA.CDONGHO,5))
+		INNER JOIN RESIDENT TBLC ON (TBLB.HOUSE_CODE = TBLC.HOUSE_CODE)
+		LEFT OUTER JOIN MAINTENANCECOST TBLD ON (TBLA.CPERIOD = TBLD.COST_DUEDATE AND TBLC.MEM_ID = TBLD.MEM_ID)
+		ORDER BY DONG, HO, COST_YEAR ASC, COST_MONTH ASC
+	</select>
+	
+	<!-- [수납관리-미납조회] 미납내역서에 출력할 계좌번호 -->
+	<select id="selectBillingAccountList" parameterType="kr.or.anyapart.receipt.vo.ReceiptVO" resultType="kr.or.anyapart.account.vo.AccountVO">
+		SELECT	ACCT_ID , 
+			    ACCT_NO , 
+			    COMMONCODE.CODE_NAME ACCT_CODE,
+			    BANK.BANK_NAME BANK_CODE, 
+			    ACCT_USER, ACCT_COMENT,
+			    ACCT_DATE, 
+		        BANK.BANK_CODE BANK_RECODE,
+		        ACCT_CODE ACCT_RECODE
+			    
+	    FROM ACCOUNT
+	    LEFT JOIN COMMONCODE ON ACCOUNT.ACCT_CODE = COMMONCODE.CODE_ID
+	    LEFT JOIN BANK ON ACCOUNT.BANK_CODE  = BANK.BANK_CODE 
+        
+        WHERE ACCT_CODE = 'BILLING' AND INSTR(ACCT_ID,#{aptCode}) > 0
+	</select>
+	
+	<!-- [수납관리-미납조회] 미납 여러건 수납처리 -->
+	<insert id="insertUnpaidReceipt" parameterType="java.util.List">
+		<foreach collection="list" item="receipt" index="index" separator=" " open="INSERT ALL" close="SELECT * FROM DUAL">
+			INTO RECEIPT (
+			    RECEIPT_NO
+			    ,COST_NO
+			    ,RECEIPT_METHOD
+			    ,RECEIPT_COST
+			    ,RECEIPT_DATE
+			    ,RECEIPT_YN
+			) VALUES (
+				( 
+					SELECT NVL(MAX(RECEIPT_NO), 0)+ 1 + #{index}
+				      FROM RECEIPT
+			    )
+				, #{receipt.costNo,jdbcType=NUMERIC}
+				, 'OFFICE'
+				, #{receipt.receiptCost,jdbcType=NUMERIC}
+				, sysdate
+				, 'Y'
+			)
+		</foreach>
+	</insert>
+</mapper>

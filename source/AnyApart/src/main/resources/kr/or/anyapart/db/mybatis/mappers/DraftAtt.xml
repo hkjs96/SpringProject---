@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.anyapart.approval.draftatt.dao.DraftAttDAO">
+	<insert id="insertAttaches" parameterType="kr.or.anyapart.approval.vo.DraftVO">
+		<selectKey order="BEFORE" keyProperty="startAttNo" resultType="int">
+			SELECT NVL(MAX(ATT_SN), 0)+1
+			FROM DRAFTATT
+			WHERE DRAFT_ID =#{draftId}
+		</selectKey>
+		INSERT ALL
+		<foreach collection="draftAttList" item="attach" index ="idx">
+			INTO DRAFTATT (
+			  ATT_SN, ATT_SAVENAME,
+			   ATT_FILENAME, ATT_MIME, 
+			   DRAFT_ID, ATT_FILESIZE,
+			    ATT_FANCY
+			) VALUES (
+				#{startAttNo,jdbcType=NUMERIC}+#{idx},    #{attach.attSavename,jdbcType=VARCHAR},
+			    #{attach.attFilename,jdbcType=VARCHAR},    #{attach.attMime,jdbcType=VARCHAR},
+			    #{draftId,jdbcType=NUMERIC},    #{attach.attFilesize,jdbcType=NUMERIC},
+			    #{attach.attFancy,jdbcType=VARCHAR}
+			)
+		</foreach>
+		SELECT * FROM DUAL
+	</insert>
+	
+	<select id="selectAttach" parameterType="kr.or.anyapart.approval.vo.DraftAttVO" resultType="kr.or.anyapart.approval.vo.DraftAttVO">
+		SELECT 
+			ATT_SN,    ATT_SAVENAME,
+		    ATT_FILENAME,    ATT_MIME,
+		    DRAFT_ID,   ATT_FILESIZE,
+		    ATT_FANCY
+		FROM DRAFTATT
+		WHERE ATT_SN = #{attSn} AND DRAFT_ID = #{draftId}
+	</select>
+
+	<delete id="deleteAttatches" parameterType="kr.or.anyapart.approval.vo.DraftVO">
+		DELETE FROM DRAFTATT
+		<where>
+			<if test="delAttNos!=null and delAttNos.length gt 0">
+				ATT_SN IN 
+				<foreach collection="delAttNos" item="attSn" open="(" close=")" separator=",">
+					#{attSn}
+				</foreach>	
+			</if>
+			<if test="delAttNos==null or delAttNos.length eq 0">
+				DRAFT_ID = #{draftId}
+			</if>
+		</where>
+	</delete>
+</mapper>

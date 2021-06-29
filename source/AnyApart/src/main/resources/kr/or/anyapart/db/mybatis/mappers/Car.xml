@@ -1,0 +1,401 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.anyapart.car.dao.CarDAO">
+	<!-- 전출자 등록시 기존에 등록된 차량 조회 by 이경륜 -->
+	
+	
+	
+	<select id="selectCarListForMoveout" parameterType="kr.or.anyapart.maintenancecost.vo.CostVO" resultType="kr.or.anyapart.car.vo.CarVO">
+		SELECT *
+		  FROM CAR
+		 WHERE MEM_ID = #{memId} AND CAR_CODE = 'CR'
+	</select>
+	
+	
+	<select id="sameCarNoSelete" parameterType="kr.or.anyapart.car.vo.CarVO" resultType="int">
+	SELECT
+        COUNT(CAR_NO)
+    FROM
+         CAR
+    WHERE CAR_NO  =#{carNo}
+	</select>
+	
+	
+	<insert id="residentCarAdd" parameterType="kr.or.anyapart.car.vo.CarVO">
+	INSERT ALL
+		INTO CAR (
+		    CAR_NO,
+		    MEM_ID,
+		    CAR_CODE,
+		    CAR_TYPE,
+		    CAR_SIZE
+		) VALUES (
+			#{carNo,jdbcType=VARCHAR},
+			#{memId,jdbcType=VARCHAR},
+			'CR',
+			#{carType,jdbcType=VARCHAR},
+			#{carSize,jdbcType=VARCHAR}
+		)
+		
+		INTO ENROLLCAR(
+			MEM_ID,
+			CAR_NO
+		) VALUES (
+			#{memId,jdbcType=VARCHAR},
+			#{carNo,jdbcType=VARCHAR}
+		)
+	SELECT * FROM DUAL
+	</insert>
+	
+	<select id="carSumNumber" resultType="kr.or.anyapart.car.vo.EnrollcarVO" parameterType="kr.or.anyapart.vo.MemberVO">
+	
+	SELECT 
+		(SELECT COUNT(*) FROM ENROLLCAR WHERE ENROLL_FLAG='ENROLLWAIT' AND MEM_ID LIKE '%'||#{aptCode}||'%')AS TOTAL,
+		(SELECT COUNT (*) FROM CAR WHERE CAR_YN = 'N' AND CAR_CODE='CR' AND MEM_ID LIKE '%'||#{aptCode}||'%') AS RESIDENT,
+		(SELECT COUNT (*) FROM CAR WHERE CAR_YN = 'N' AND CAR_CODE='CV' AND MEM_ID LIKE '%'||#{aptCode}||'%') AS GUEST
+	FROM DUAL
+	</select>
+	
+	<select id="carALLSumNumber" resultType="kr.or.anyapart.car.vo.EnrollcarVO" parameterType="kr.or.anyapart.vo.MemberVO">
+	 SELECT 
+		(SELECT COUNT (*)  FROM CAR  WHERE CAR_YN = 'Y' AND CAR_CODE !='CN' AND MEM_ID LIKE '%'||#{aptCode}||'%' )AS TOTAL,
+		(SELECT COUNT (*) FROM CAR WHERE CAR_YN = 'Y' AND CAR_CODE='CR' AND MEM_ID LIKE '%'||#{aptCode}||'%') AS RESIDENT,
+		(SELECT COUNT (*) FROM CAR WHERE CAR_YN = 'Y' AND CAR_CODE='CV' AND MEM_ID LIKE '%'||#{aptCode}||'%') AS GUEST
+	FROM DUAL
+	</select>
+	
+	<select id="dougList" parameterType="kr.or.anyapart.car.vo.EnrollcarVO" resultType="kr.or.anyapart.car.vo.EnrollcarVO">
+	
+	SELECT 
+	    DISTINCT HOUSE.DONG AS DONG,
+	    HOUSE.HO AS HO
+	FROM
+	    CAR
+	    LEFT JOIN RESIDENT ON CAR.MEM_ID = RESIDENT.MEM_ID
+	    LEFT JOIN HOUSE ON RESIDENT.HOUSE_code = HOUSE.HOUSE_CODE
+	    LEFT JOIN ENROLLCAR ON CAR.CAR_NO = ENROLLCAR.CAR_NO
+	    LEFT JOIN COMMONCODE ON ENROLLCAR.ENROLL_FLAG = COMMONCODE.CODE_ID 
+	    WHERE MEM_ID LIKE '%'||#{apartCode}||'%'
+	    AND CAR_YN = 'Y'
+        AND CAR_CODE !='CR'
+        <if test="type == null">
+		ORDER BY DONG DESC
+		</if>
+		<if test="type != null">
+		AND DONG = #{type}
+		ORDER BY HO DESC
+		</if>
+	</select>
+	
+	
+	<select id="userInpossessionCarList" parameterType="kr.or.anyapart.vo.MemberVO" resultType="kr.or.anyapart.car.vo.CarVO">
+		SELECT
+		    CAR_NO,
+		    MEM_ID,
+		    CAR_CODE,
+		    CAR_TYPE,
+		    CAR_SIZE,
+        (SELECT COMMONCODE.CODE_NAME FROM COMMONCODE WHERE COMMONCODE.CODE_ID = CAR.CAR_SIZE) AS CAR_SIZE_NAME,
+	    (SELECT COMMONCODE.CODE_NAME FROM COMMONCODE WHERE COMMONCODE.CODE_ID = CAR_CODE) AS CAR_CODE_NAME
+		FROM
+		    CAR
+		WHERE 
+	    	MEM_ID = #{memId}
+	    AND CAR_YN ='Y'
+	    AND CAR_CODE != 'CN'
+	</select>
+	
+	<select id="carCodeList" resultType="kr.or.anyapart.vo.CodeVO" >
+	SELECT
+	   CODE_ID, 
+	   CODE, 
+	   CODE_NAME
+	FROM COMMONCODE
+	WHERE CODE = 'CAR_SIZE'
+	</select>
+	
+	
+	<select id="enrollList" parameterType="kr.or.anyapart.vo.MemberVO" resultType="kr.or.anyapart.car.vo.EnrollcarVO">
+	
+	SELECT MEM_ID, 
+	    CAR_NO, 
+	    TO_CHAR(APPLY_DATE,'YYYY-MM-DD') APPLY_DATE, 
+	    TO_CHAR(APPROVAL_DATE,'YYYY-MM-DD') APPROVAL_DATE,  
+	    COMMONCODE.CODE_NAME AS ENROLL_FLAG
+	FROM ENROLLCAR
+	LEFT JOIN COMMONCODE ON ENROLLCAR.ENROLL_FLAG = COMMONCODE.CODE_ID
+	WHERE MEM_ID= #{memId}
+	ORDER BY APPLY_DATE DESC
+	</select>
+	
+	
+	
+	<select id="carAllList" parameterType="kr.or.anyapart.car.vo.EnrollcarVO" resultType="kr.or.anyapart.car.vo.EnrollcarVO">
+	SELECT 
+	    CAR.CAR_NO AS CAR_NO,
+	    CAR_TYPE,
+	    CAR_YN,
+	    HOUSE.DONG AS DONG,
+	    HOUSE.HO AS HO,
+	    RESIDENT.RES_NAME AS RES_NAME,
+	    TO_CHAR(ENROLLCAR.APPLY_DATE,'YYYY-MM-DD') APPLY_DATE,
+	    TO_CHAR(ENROLLCAR.APPROVAL_DATE,'YYYY-MM-DD')  APPROVAL_DATE,
+	    ENROLLCAR.COMMONCODE.CODE_NAME AS ENROLL_FLAG,
+	    (SELECT COMMONCODE.CODE_NAME FROM COMMONCODE WHERE COMMONCODE.CODE_ID = CAR.CAR_SIZE) AS CAR_SIZE,
+	    (SELECT COMMONCODE.CODE_NAME FROM COMMONCODE WHERE COMMONCODE.CODE_ID = CAR_CODE) AS CAR_CODE_NAME,
+	    CAR_CODE
+   
+	FROM
+	    CAR
+	    LEFT JOIN RESIDENT ON CAR.MEM_ID = RESIDENT.MEM_ID
+	    LEFT JOIN HOUSE ON RESIDENT.HOUSE_code = HOUSE.HOUSE_CODE
+	    LEFT JOIN ENROLLCAR ON CAR.CAR_NO = ENROLLCAR.CAR_NO
+	    LEFT JOIN COMMONCODE ON ENROLLCAR.ENROLL_FLAG = COMMONCODE.CODE_ID 
+	    WHERE MEM_ID LIKE '%'||#{apartCode}||'%'
+	    AND CAR_YN = 'N' 
+	    <if test="type!='all'">
+	    AND CAR_CODE =#{type}
+	    </if>
+	    AND ENROLL_FLAG='ENROLLWAIT'
+	ORDER BY ENROLLCAR.APPLY_DATE DESC
+	</select>
+	
+	
+	<update id="enrollreUpdate" parameterType="kr.or.anyapart.car.vo.EnrollcarVO">
+		UPDATE ENROLLCAR
+		SET
+		APPROVAL_DATE = SYSDATE 
+		,ENROLL_FLAG = #{type}
+    WHERE CAR_NO =#{carNo}
+	</update>
+	
+	<update id="carUpdate" parameterType="kr.or.anyapart.car.vo.EnrollcarVO">
+	UPDATE CAR 
+       SET 
+       <if test="type=='ENROLLREJECT'">
+       CAR_YN ='N'
+       </if>
+       <if test="type=='ENROLLAPPROVAL'">
+       CAR_YN ='Y'
+       </if>
+       WHERE CAR_NO =#{carNo}
+	</update>
+	
+	<select id="residentCarListALL" parameterType="kr.or.anyapart.car.vo.EnrollcarVO" resultType="kr.or.anyapart.car.vo.EnrollcarVO">
+	SELECT 
+	    CAR.CAR_NO AS CAR_NO,
+	    CAR_TYPE,
+	    CAR_YN,
+	    HOUSE.DONG AS DONG,
+	    HOUSE.HO AS HO,
+	    RESIDENT.RES_NAME AS RES_NAME,
+	    TO_CHAR(ENROLLCAR.APPLY_DATE,'YYYY-MM-DD') APPLY_DATE,
+	    TO_CHAR(ENROLLCAR.APPROVAL_DATE,'YYYY-MM-DD')  APPROVAL_DATE,
+	    ENROLLCAR.COMMONCODE.CODE_NAME AS ENROLL_FLAG,
+	    (SELECT COMMONCODE.CODE_NAME FROM COMMONCODE WHERE COMMONCODE.CODE_ID = CAR.CAR_SIZE) AS CAR_SIZE,
+	    (SELECT COMMONCODE.CODE_NAME FROM COMMONCODE WHERE COMMONCODE.CODE_ID = CAR_CODE) AS CAR_CODE_NAME,
+	    CAR_CODE
+   
+	FROM
+	    CAR
+	    LEFT JOIN RESIDENT ON CAR.MEM_ID = RESIDENT.MEM_ID
+	    LEFT JOIN HOUSE ON RESIDENT.HOUSE_code = HOUSE.HOUSE_CODE
+	    LEFT JOIN ENROLLCAR ON CAR.CAR_NO = ENROLLCAR.CAR_NO
+	    LEFT JOIN COMMONCODE ON ENROLLCAR.ENROLL_FLAG = COMMONCODE.CODE_ID 
+	    WHERE MEM_ID LIKE '%'||#{apartCode}||'%'
+	    AND CAR_YN = 'Y'
+	    <if test="type!='all'">
+	    AND CAR_CODE =#{type}
+	    </if>
+	    AND CAR_CODE != 'CN'
+        
+	ORDER BY ENROLLCAR.APPLY_DATE DESC
+	</select>
+	
+	
+	<select id="residentInfo" parameterType="kr.or.anyapart.resident.vo.ResidentVO" resultType="kr.or.anyapart.resident.vo.ResidentVO">
+		SELECT 
+    RESIDENT.MEM_ID AS MEM_ID,
+    RES_NAME,
+    RES_HP,
+    HOUSE.DONG AS DONG,
+    HOUSE.HO AS HO,
+    COUNT(CAR.CAR_NO) AS RES_CAR_COUNT
+	FROM RESIDENT
+	LEFT JOIN HOUSE ON RESIDENT.HOUSE_CODE = HOUSE.HOUSE_CODE
+	LEFT JOIN CAR ON RESIDENT.MEM_ID = CAR.MEM_ID
+	WHERE HOUSE.DONG = #{dong}
+	AND HOUSE.HO= #{ho}
+	AND CAR.CAR_YN = 'Y'
+	AND HOUSE.APT_CODE =#{aptCode}
+	AND CAR.CAR_CODE !='CN'
+	GROUP BY RESIDENT.MEM_ID, RES_NAME,RES_HP,HOUSE.DONG,HOUSE.HO
+	
+	</select>
+	
+	<insert id="officeCarAdd" parameterType="kr.or.anyapart.car.vo.CarVO">
+	
+		INSERT ALL
+		INTO CAR (
+		    CAR_NO,
+		    MEM_ID,
+		    CAR_CODE,
+		    CAR_TYPE,
+		    CAR_SIZE,
+		    CAR_YN
+		) VALUES (
+			#{carNo,jdbcType=VARCHAR},
+			#{memId,jdbcType=VARCHAR},
+			#{carCode,jdbcType=VARCHAR},
+			#{carType,jdbcType=VARCHAR},
+			#{carSize,jdbcType=VARCHAR},
+			'Y'
+		)
+		
+		INTO ENROLLCAR(
+			MEM_ID,
+			CAR_NO,
+			APPROVAL_DATE,
+			ENROLL_FLAG
+		) VALUES (
+			#{memId,jdbcType=VARCHAR},
+			#{carNo,jdbcType=VARCHAR},
+			SYSDATE,
+			'ENROLLAPPROVAL'
+			
+		)
+	SELECT * FROM DUAL
+	</insert>
+	
+	<update id="residentCarDelete" parameterType="kr.or.anyapart.car.vo.CarVO">
+	UPDATE ENROLLCAR
+		SET
+		APPROVAL_DATE = SYSDATE 
+		,ENROLL_FLAG = 'ENROLLREJECT'
+    WHERE CAR_NO =#{carNo}
+	</update>
+	
+	<update id="residentCarDelete2" parameterType="kr.or.anyapart.car.vo.CarVO">
+		UPDATE CAR
+			SET
+			CAR_YN ='N'
+		   WHERE
+		CAR_NO =#{carNo}
+	</update>
+	
+	
+	
+	<select id="carIOList" parameterType="kr.or.anyapart.car.vo.CarIOVO" resultType="kr.or.anyapart.car.vo.CarIOVO">
+		SELECT
+		    CARIO.car_no,
+		    car_iochk,
+		    car_io_hh,
+		    car_io_mi,
+		    HOUSE.DONG,
+		    HOUSE.HO,
+		    CAR.CAR_TYPE,
+		    (SELECT COMMONCODE.CODE_NAME FROM COMMONCODE WHERE COMMONCODE.CODE_ID = CAR.CAR_SIZE) AS CAR_SIZE,
+		    (SELECT COMMONCODE.CODE_NAME FROM COMMONCODE WHERE COMMONCODE.CODE_ID = CAR.CAR_CODE) AS CAR_CODE_NAME 
+		FROM
+		    CARIO
+		LEFT JOIN RESIDENT ON CARIO.MEM_ID = RESIDENT.MEM_ID
+		LEFT JOIN CAR ON CARIO.CAR_NO = CAR.CAR_NO
+		LEFT JOIN HOUSE ON RESIDENT.HOUSE_CODE = HOUSE.HOUSE_CODE
+		LEFT JOIN COMMONCODE ON CAR.CAR_SIZE = COMMONCODE.CODE_ID 
+		WHERE CARIO.MEM_ID LIKE '%'||#{aptCode}||'%'
+		<if test="year!=null and year!=''">
+		AND TO_CHAR(CAR_IO_DATE,'YYYY') =#{year}
+		</if>
+		<if test="month!=null and month !=''">
+		AND TO_CHAR(CAR_IO_DATE,'MM')=#{month}
+		</if>
+		<if test="day!=null and day !=''">
+		AND TO_CHAR(CAR_IO_DATE,'DD')=#{day}
+		</if>
+		<if test="year==null or year==''">
+		AND CAR_IO_DATE = TO_CHAR(SYSDATE,'YYYY-MM-DD')
+		</if>
+		
+		ORDER BY CAR_IO_SEQ DESC
+	</select>
+	
+	
+	<select id="selectCarNum" parameterType="kr.or.anyapart.car.vo.CarVO" resultType="kr.or.anyapart.car.vo.CarVO">
+	SELECT
+	    CAR_NO,
+	    MEM_ID,
+	    CAR_CODE,
+	    CAR_TYPE,
+	    CAR_SIZE,
+	    CAR_YN
+	FROM
+	    CAR
+	WHERE CAR_NO = #{carNo}
+	</select>
+	
+	
+	<insert id="carIOAdd" parameterType="kr.or.anyapart.car.vo.CarVO">
+		<selectKey order="BEFORE" keyProperty="ioseq"
+			resultType="int">
+			SELECT 
+ 				COUNT (*)+1 AS COUNT
+			FROM CARIO
+		</selectKey>
+	    INSERT INTO cario (
+		    car_io_seq,
+		    car_no,
+		    mem_id,
+		    car_io_date,
+		    car_iochk,
+		    car_io_hh,
+		    car_io_mi
+		) VALUES (
+		    #{ioseq,jdbcType=NUMERIC},
+		    #{carNo,jdbcType=VARCHAR},
+		    #{memId,jdbcType=VARCHAR},
+		    TO_CHAR(SYSDATE,'YYYY-MM-DD'),
+		    #{carIochk,jdbcType=VARCHAR},
+		    (SELECT TO_CHAR(SYSDATE,'HH24') FROM DUAL),
+		    (SELECT TO_CHAR(SYSDATE,'MI') FROM DUAL)
+		)
+	</insert>
+	
+	<select id="whatIO" parameterType="kr.or.anyapart.car.vo.CarVO" resultType="kr.or.anyapart.car.vo.CarIOVO">
+	SELECT 
+		 CAR_IOCHK
+	FROM CARIO
+	WHERE CAR_NO=#{carNo}
+    AND CAR_IO_SEQ=
+    (SELECT
+		   MAX(car_io_seq)as car_io_seq
+		FROM
+		    CARIO
+		WHERE CAR_NO =#{carNo}
+	)
+	</select>
+	
+	
+	
+	<select id="inCarList" parameterType="kr.or.anyapart.vo.MemberVO" resultType="int">
+	
+	SELECT
+	   (select COUNT(*) FROM CARIO WHERE CAR_IOCHK = 'I' AND MEM_ID LIKE '%'||#{aptCode}||'%')-
+	   (SELECT COUNT(*) FROM CARIO WHERE CAR_IOCHK ='O' AND MEM_ID LIKE '%'||#{aptCode}||'%')AS CARCOUNT
+	FROM
+    	Dual
+
+	
+	</select>
+	
+	<select id="newCarNumber" resultType="string">
+	SELECT 
+	    CAR_NO
+		FROM CARIO
+		WHERE CAR_IO_SEQ=(SELECT
+		   MAX(CAR_IO_SEQ)AS CAR_IO_SEQ
+		FROM
+		    CARIO
+		WHERE CAR_IO_DATE= TO_CHAR(SYSDATE,'YYYY-MM-DD')
+	)
+	</select>
+</mapper>

@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE tiles-definitions PUBLIC "-//Apache Software Foundation//DTD Tiles Configuration 3.0//EN" "http://tiles.apache.org/dtds/tiles-config_3_0.dtd" >
+<tiles-definitions>
+	<definition name="parentR" template="/WEB-INF/views/resident/templateR.jsp">
+		<put-attribute name="preScript" value="/includeeResident/preScriptR.jsp"/>
+		<put-attribute name="topMenu" value="/includeeResident/topMenuR.jsp"/>
+		<put-attribute name="footer" value="/includeeResident/footerR.jsp"/>
+	</definition>
+
+	<definition name="indexR" extends="parentR">
+		<put-attribute name="contents" value="/WEB-INF/views/resident/indexR.jsp"/>
+	</definition>
+	<definition name="loginR" extends="parentV">
+		<put-attribute name="contents" value="/WEB-INF/views/resident/loginR.jsp"/>
+	</definition>
+	<!-- 	ìì£¼ë¯¼ê³µê°-ìì ê²ìí, ë¬¸ìíê¸° -->
+	<definition name="space/*" extends="parentR">
+		<put-attribute name="contents" value="/WEB-INF/views/resident/space/{1}.jsp"/>
+	</definition>
+	<!-- 	ìë¦¼ë§ë¹-ê³µì§ì¬í­, ìíí¸ìì -->
+	<definition name="notice/*" extends="parentR">
+		<put-attribute name="contents" value="/WEB-INF/views/resident/notice/{1}.jsp"/>
+	</definition>
+	<!-- 	ì»¤ë®¤ëí° -->
+	<definition name="community/*" extends="parentR">
+		<put-attribute name="contents" value="/WEB-INF/views/resident/community/{1}.jsp"/>
+	</definition>
+	<!-- 	ê´ë¦¬ë¹ -->
+	<definition name="maintenanceCost/*" extends="parentR">
+		<put-attribute name="contents" value="/WEB-INF/views/resident/maintenanceCost/{1}.jsp"/>
+	</definition>
+	<!-- 	energy -->
+	<definition name="energy/*" extends="parentR">
+		<put-attribute name="contents" value="/WEB-INF/views/resident/energy/{1}.jsp"/>
+	</definition>
+	<!-- 	ì°¨ëê´ë¦¬ -->
+	<definition name="car/*" extends="parentR">
+		<put-attribute name="contents" value="/WEB-INF/views/resident/car/{1}.jsp"/>
+	</definition>
+	<!-- 	ìë¦¬ìì  -->
+	<definition name="support/*" extends="parentR">
+		<put-attribute name="contents" value="/WEB-INF/views/resident/support/{1}.jsp"/>
+	</definition>
+	<definition name="mypage/*" extends="parentR">
+		<put-attribute name="contents" value="/WEB-INF/views/resident/mypage/{1}.jsp"/>
+	</definition>
+	
+	
+</tiles-definitions>
+

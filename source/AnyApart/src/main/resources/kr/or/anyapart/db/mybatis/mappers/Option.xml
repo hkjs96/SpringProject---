@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.anyapart.board.vendorqna.dao.IOptionDAO">
+
+	<select id="retrieveQnaOption" resultType="kr.or.anyapart.vo.CodeVO">
+		SELECT
+	    	CODE_ID,
+		    CODE,
+		    CODE_NAME
+		FROM
+		    COMMONCODE
+		WHERE INSTR(CODE_ID, 'VQNA') > 0
+	</select>
+
+	<select id="retrieveApartOption" resultType="kr.or.anyapart.vo.CodeVO">
+		SELECT
+	    	CODE_ID,
+		    CODE,
+		    CODE_NAME
+		FROM
+		    COMMONCODE
+		WHERE INSTR(CODE, 'APT_HEAT') > 0
+	</select>
+	
+	<select id="retrieveProdOption" resultType="kr.or.anyapart.vo.CodeVO">
+		SELECT
+	    	CODE_ID,
+		    CODE,
+		    CODE_NAME
+		FROM
+		    COMMONCODE
+		WHERE INSTR(CODE, 'PROD_CODE') > 0
+	</select>
+	
+	<select id="retrieveCommunityOption" resultType="kr.or.anyapart.vo.CodeVO">
+		SELECT
+	    	CODE_ID,
+		    CODE,
+		    CODE_NAME
+		FROM
+		    COMMONCODE
+		WHERE INSTR(CODE, 'CMNT_CODE') > 0
+	</select>
+	
+	<select id="retrieveProdId" parameterType="kr.or.anyapart.vo.MemberVO" resultType="kr.or.anyapart.asset.vo.ProdVO">
+		SELECT 
+		    PROD_ID,
+		    PROD_CODE,
+		    PROD_NAME
+		FROM PROD
+		WHERE APT_CODE = #{aptCode}
+	</select>
+	
+	<select id="retrieveRepairOption" resultType="kr.or.anyapart.vo.CodeVO">
+		SELECT
+		    DISTINCT CODE_ID,
+		    CODE,
+		    CODE_NAME
+		FROM
+		    REPAIR A LEFT OUTER JOIN PROD B ON ( A.PROD_ID = B.PROD_ID )
+		             LEFT OUTER JOIN COMMONCODE C ON ( B.PROD_CODE = c.CODE_ID )
+		WHERE INSTR(CODE, 'PROD_CODE') > 0
+	</select>
+	
+	<select id="retrieveRepairProdId" resultType="kr.or.anyapart.asset.vo.ProdVO">
+		SELECT 
+		    DISTINCT A.PROD_ID,
+		    PROD_CODE,
+		    PROD_NAME
+		FROM REPAIR A LEFT OUTER JOIN PROD B ON ( A.PROD_ID = B.PROD_ID )
+		WHERE APT_CODE = #{aptCode}
+	</select>
+	
+</mapper>

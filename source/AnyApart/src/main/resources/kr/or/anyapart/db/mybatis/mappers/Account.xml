@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.anyapart.account.dao.IAccountDAO">
+	<sql id="searchFrag">
+		<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchVO.searchAptCode)">
+				 where INSTR(ACCT_ID, #{searchVO.searchAptCode}) > 0
+			</if>
+	<if test="searchVO!=null">
+			<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchVO.searchWord)">
+				<choose>
+					<when test="'acctCode'.equals(searchVO.searchType)">
+						AND INSTR(COMMONCODE.CODE_NAME, #{searchVO.searchWord}) > 0
+					</when>
+					<when test="'bankCode'.equals(searchVO.searchType)">
+						AND INSTR(BANK.BANK_NAME, #{searchVO.searchWord}) > 0
+					</when>
+					<otherwise>
+						AND 
+						( INSTR(COMMONCODE.CODE_NAME, #{searchVO.searchWord}) > 0
+						OR INSTR(BANK.BANK_NAME, #{searchVO.searchWord}) > 0
+						)
+					</otherwise>
+				</choose>
+			</if>
+		</if>
+	</sql>
+	
+	<select id="seleteAccountList"  parameterType="kr.or.anyapart.vo.PagingVO" resultType="kr.or.anyapart.account.vo.AccountVO">
+		
+		SELECT B.*
+		FROM (
+			SELECT A.*, ROWNUM ACCTRUM
+			FROM (
+				SELECT ACCT_ID , 
+				ACCT_NO , 
+				COMMONCODE.CODE_NAME ACCT_CODE,
+				BANK.BANK_NAME BANK_CODE, 
+				ACCT_USER,ACCT_COMENT,
+                TO_CHAR(ACCT_DATE,'yyyy-MM-dd') ACCT_DATE
+				
+				FROM ACCOUNT
+              		LEFT JOIN COMMONCODE ON ACCOUNT.ACCT_CODE = COMMONCODE.CODE_ID
+                	LEFT JOIN BANK ON ACCOUNT.BANK_CODE  = BANK.BANK_CODE
+				<include refid="searchFrag" />
+				ORDER BY ACCT_CODE DESC
+			) A
+		) B	
+		<![CDATA[
+			WHERE ACCTRUM >= #{startRow} AND ACCTRUM <= #{endRow}
+		]]>
+		
+	</select>
+	
+	
+	<select id="retrieveAccountCount"  parameterType="kr.or.anyapart.vo.PagingVO" resultType="int">
+		SELECT COUNT(*)
+		FROM ACCOUNT
+		LEFT JOIN COMMONCODE ON ACCOUNT.ACCT_CODE = COMMONCODE.CODE_ID
+		LEFT JOIN BANK ON ACCOUNT.BANK_CODE  = BANK.BANK_CODE
+		<include refid="searchFrag" />
+		
+	</select>
+	
+	<select id ="bankCodeList" resultType="kr.or.anyapart.vo.BankCodeVO">
+		SELECT 
+			BANK_CODE ,
+			BANK_NAME
+      
+        FROM 
+        	BANK			
+	</select>
+	
+	<select id="commoncodeList" resultType="kr.or.anyapart.vo.CodeVO">
+		SELECT
+	        CODE_ID,
+	        CODE,
+	        CODE_NAME
+	   	FROM
+	        COMMONCODE
+	    WHERE CODE = 'ACCT_CODE'
+		
+	</select>
+	
+	<insert id="insertAccount" parameterType="kr.or.anyapart.account.vo.AccountVO">
+	
+	<selectKey order="BEFORE" keyProperty="acctId" resultType="String">
+			SELECT #{apartType}||'A'||LPAD(NVL(MAX(SUBSTR(ACCT_ID,7)),0)+1,3,0)
+			FROM ACCOUNT
+			WHERE INSTR(ACCT_ID,#{apartType})>0
+		</selectKey>
+		INSERT INTO ACCOUNT (
+			ACCT_ID,
+		    ACCT_NO,
+		    BANK_CODE,
+		    ACCT_CODE,
+		    ACCT_USER,
+		    ACCT_DATE,
+		    ACCT_COMENT
+			)VALUES(
+			#{acctId,jdbcType=VARCHAR}, 
+			#{acctNo,jdbcType=VARCHAR}, 
+			#{bankCode,jdbcType=VARCHAR},
+			#{acctCode,jdbcType=VARCHAR},
+			#{acctUser,jdbcType=VARCHAR},
+			 SYSDATE,
+			#{acctComent,jdbcType=VARCHAR}
+		)
+	</insert>
+	
+	
+	<select id="seleteAccount" parameterType="kr.or.anyapart.account.vo.AccountVO" resultType="kr.or.anyapart.account.vo.AccountVO">
+		
+		SELECT
+		ACCT_ID , 
+	    ACCT_NO , 
+	    COMMONCODE.CODE_NAME ACCT_CODE,
+	    BANK.BANK_NAME BANK_CODE, 
+	    ACCT_USER, ACCT_COMENT,
+	    ACCT_DATE, 
+        BANK.BANK_CODE BANK_RECODE,
+        ACCT_CODE ACCT_RECODE
+	    
+	    FROM ACCOUNT
+	    LEFT JOIN COMMONCODE ON ACCOUNT.ACCT_CODE = COMMONCODE.CODE_ID
+	    LEFT JOIN BANK ON ACCOUNT.BANK_CODE  = BANK.BANK_CODE 
+		
+		WHERE ACCT_ID = #{acctId}
+	
+	</select>
+	
+	
+	<update id="updateAccoutn" parameterType="kr.or.anyapart.account.vo.AccountVO">
+		UPDATE ACCOUNT
+		SET
+			ACCT_NO=#{acctNo,jdbcType=VARCHAR}, 
+		    BANK_CODE=#{bankCode,jdbcType=VARCHAR},
+		    ACCT_CODE=#{acctCode,jdbcType=VARCHAR},
+		    ACCT_USER=#{acctUser,jdbcType=VARCHAR},
+		    ACCT_DATE= SYSDATE,
+		    ACCT_COMENT=#{acctComent,jdbcType=VARCHAR}
+		    
+		WHERE ACCT_ID = #{acctId}
+	</update>
+</mapper>

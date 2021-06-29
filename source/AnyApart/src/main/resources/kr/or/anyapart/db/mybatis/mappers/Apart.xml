@@ -1,0 +1,256 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.anyapart.apart.dao.IApartDAO">
+	
+	<sql id="searchFrag">
+		<where>
+			<if test="searchVO!=null and @org.apache.commons.lang3.StringUtils@isNotBlank(searchVO.searchWord)">
+				<choose>
+					<when test="'aptName'.equals(searchVO.searchType)">
+						INSTR(APT_NAME, #{searchVO.searchWord}) > 0
+					</when>
+					<when test="'aptHead'.equals(searchVO.searchType)">
+						INSTR(APT_HEAD, #{searchVO.searchWord}) > 0
+					</when>
+					<when test="'aptAdd1'.equals(searchVO.searchType)">
+						INSTR(APT_ADD1, #{searchVO.searchWord}) > 0
+					</when>
+					<otherwise>
+						INSTR(APT_NAME, #{searchVO.searchWord}) > 0
+						OR INSTR(APT_HEAD, #{searchVO.searchWord}) > 0
+						OR INSTR(APT_ADD1, #{searchVO.searchWord}) > 0 
+					</otherwise>
+				</choose>
+			</if>
+		</where>
+	</sql>
+	
+	<select id="apartCount" parameterType="kr.or.anyapart.vo.PagingVO" resultType="int">
+		SELECT COUNT(*)
+		FROM APART A 
+			JOIN COMMONCODE B ON (A.APT_HEAT = B.CODE_ID)
+		<include refid="searchFrag" />
+	</select>
+
+	<select id="retrieveApartList" parameterType="kr.or.anyapart.vo.PagingVO" resultType="kr.or.anyapart.apart.vo.ApartVO">
+		SELECT B.*
+			FROM(
+				SELECT A.*, ROWNUM RNUM
+				FROM (
+					SELECT
+					    APT_CODE,
+					    APT_NAME,
+					    APT_ZIP,
+					    APT_ADD1,
+					    APT_ADD2,
+					    APT_CNT,
+					    APT_IMG,
+					    CASE WHEN APT_END &lt; sysdate THEN 'N'
+       						ELSE 'Y' END AS APT_DELETE,
+					    CODE_NAME AS APT_HEAT,
+					    APT_TEL,
+					    APT_HEAD,
+					    TO_CHAR(APT_START,'YYYY-MM-DD') AS APT_START,
+					    TO_CHAR(APT_END,'YYYY-MM-DD') AS APT_END,
+					    APT_AREA
+					FROM
+					    APART A
+					    JOIN COMMONCODE B ON (A.APT_HEAT = B.CODE_ID)
+					<include refid="searchFrag" />
+					ORDER BY APT_DELETE DESC, APT_CODE DESC
+				) A
+			)B
+			WHERE RNUM BETWEEN #{startRow} AND #{endRow}
+		
+	</select>
+	
+	<select id="retrieveApart" parameterType="String" resultType="kr.or.anyapart.apart.vo.ApartVO">
+		SELECT
+		    A.APT_CODE,
+		    A.APT_NAME,
+		    A.APT_ZIP,
+		    A.APT_ADD1,
+		    A.APT_ADD2,
+		    NVL(A.APT_CNT,0) AS APT_CNT,
+		    A.APT_IMG,
+		    CASE WHEN APT_END &lt; sysdate THEN 'N'
+       			ELSE 'Y' END AS APT_DELETE,
+		    B.CODE_NAME AS APT_HEAT,
+		    A.APT_TEL,
+		    A.APT_HEAD,
+		    TO_CHAR(A.APT_START, 'YYYY-MM-DD') AS APT_START,
+		    TO_CHAR(A.APT_END, 'YYYY-MM-DD') AS APT_END,
+		    NVL(A.APT_AREA, 0) AS APT_AREA,
+		    C.MEM_ID
+		FROM
+		    APART A LEFT OUTER JOIN COMMONCODE B ON (A.APT_HEAT = B.CODE_ID)
+		            LEFT OUTER JOIN EMPLOYEE C ON (A.APT_CODE = C.APT_CODE AND A.APT_HEAD = C.EMP_NAME)
+		WHERE A.APT_CODE = #{aptCode }
+	</select>
+	
+	<insert id="insertApart" parameterType="kr.or.anyapart.apart.vo.ApartVO" >
+		<selectKey order="BEFORE" resultType="string" keyProperty="aptCode">
+			SELECT 'A'||LPAD(SUBSTR(MAX(APT_CODE),2,4)+1, 4,'0')
+			FROM APART
+		</selectKey>
+		INSERT INTO APART (
+		    APT_CODE,
+		    APT_NAME,
+		    APT_ZIP,
+		    APT_ADD1,
+		    <if test="aptAdd2!=null">
+			    APT_ADD2,
+		    </if>
+		    APT_IMG,
+		    APT_DELETE,
+		    APT_HEAT,
+		    APT_TEL,
+		    APT_HEAD,
+		    APT_START,
+		    APT_END
+		) VALUES (
+		    #{aptCode,jdbcType=VARCHAR}
+			, #{aptName, jdbcType=VARCHAR}
+			, #{aptZip, jdbcType=VARCHAR}
+			, #{aptAdd1, jdbcType=VARCHAR}
+			<if test="aptAdd2!=null">
+				, #{aptAdd2, jdbcType=VARCHAR}
+			</if>
+			, #{aptImg, jdbcType=VARCHAR}
+			, 'Y'
+			, #{aptHeat, jdbcType=VARCHAR}
+			, #{aptTel, jdbcType=VARCHAR}
+			, #{aptHead, jdbcType=VARCHAR}
+			, #{aptStart, jdbcType=DATE}
+			, #{aptEnd, jdbcType=DATE}
+		)
+	</insert>
+	
+	<update id="updateApart" parameterType="kr.or.anyapart.apart.vo.ApartVO" >
+		UPDATE APART
+		    SET
+ 			APT_HEAT = #{aptHeat, jdbcType=VARCHAR}
+		    , APT_TEL = #{aptTel, jdbcType=VARCHAR}
+		    , APT_HEAD = #{aptHead, jdbcType=VARCHAR}
+		    <if test="@org.apache.commons.lang3.StringUtils@isNotBlank(aptCnt)">
+		    	, APT_CNT = #{aptCnt, jdbcType=INTEGER}
+		    </if>
+		    <if test="@org.apache.commons.lang3.StringUtils@isNotBlank(aptImg)">
+		    	, APT_IMG = #{aptImg, jdbcType=VARCHAR}
+		    </if>
+		    <if test="@org.apache.commons.lang3.StringUtils@isNotBlank(aptDelete)">
+		    	, APT_DELETE = #{aptDelete, jdbcType=VARCHAR}
+		    </if>
+		   
+		    <if test="@org.apache.commons.lang3.StringUtils@isNotBlank(aptStart)">
+		    	, APT_START = #{aptStart, jdbcType=DATE}
+		    </if>
+		    <if test="@org.apache.commons.lang3.StringUtils@isNotBlank(aptEnd)">
+			    , APT_END = #{aptEnd, jdbcType=DATE}
+		    </if>
+		    <if test="@org.apache.commons.lang3.StringUtils@isNotBlank(aptArea)">
+		    	, APT_AREA = #{aptArea, jdbcType=VARCHAR}
+		    </if>
+		WHERE
+		    APT_CODE = #{aptCode, jdbcType=VARCHAR}
+		    
+	</update>
+	
+	
+	<!-- 
+		아파트 단지 관련
+	 -->
+	
+	<select id="retrieveHouse" parameterType="String" resultType="kr.or.anyapart.apart.vo.HouseVO">
+		SELECT
+		    HOUSE_CODE,
+		    DONG,
+		    HO,
+		    MOVE_YN,
+		    APT_CODE,
+		    HOUSE_AREA
+		FROM
+		    HOUSE
+		WHERE APT_CODE = #{aptCode}
+		ORDER BY HOUSE_CODE 
+	</select>
+	
+	<insert id="insertHouse" parameterType="kr.or.anyapart.apart.vo.HouseVO" statementType="CALLABLE" >
+<!-- 		exec P_HOUSE('A0001','1406','15','1','87'); -->
+<!-- 아파트 코드, 동, 층, 라인, 면적 -->
+		{
+			CALL P_HOUSE(
+				#{aptCode, javaType=string, jdbcType=VARCHAR, mode=IN}
+				, #{dong, javaType=string, jdbcType=VARCHAR, mode=IN}
+				, #{floor, javaType=string, jdbcType=VARCHAR, mode=IN}
+				, #{ho, javaType=string, jdbcType=VARCHAR, mode=IN}
+				, #{houseArea, javaType=string, jdbcType=VARCHAR, mode=IN}
+				, #{resultCnt, javaType=int, jdbcType=INTEGER,mode=OUT}
+				)
+		}
+	</insert>
+	
+	<delete id="deleteHouse" parameterType="String">
+		DELETE FROM house
+		WHERE	house_code = #{houseCode } 
+	</delete>
+	
+	<insert id="insertApartHead" parameterType="kr.or.anyapart.employee.vo.EmployeeVO">
+		<selectKey order="BEFORE" keyProperty="memId" resultType="String">
+			SELECT #{aptCode} ||'E001'
+			    FROM DUAL
+		</selectKey>
+		INSERT ALL INTO MEMBER (
+		    MEM_ID,
+		    MEM_NICK,
+		    MEM_PASS,
+		    MEM_ROLE,
+		    MEM_DELETE
+		) VALUES (
+			#{aptCode} ||'E001'
+			, #{empName}	
+			, #{empTel}
+			, 'ROLE_HEAD'
+			, 'N'	       
+		)INTO EMPLOYEE (
+		    MEM_ID
+		    , APT_CODE
+		    , EMP_NAME
+		    , POSITION_CODE
+		    , EMP_MAIL
+		    , EMP_HP
+		    , EMP_ZIP
+		    , EMP_ADD1
+		    , EMP_ADD2
+		    , EMP_ACCT
+		    , EMP_TEL
+		    , EMP_START
+		    , EMP_OFF
+		    , EMP_BANK
+		) VALUES (
+		    #{aptCode} ||'E001'
+			, #{aptCode}
+			, #{empName}
+			, 'E001'
+			, ' '
+			, ' '
+			, ' '
+			, ' '
+			, ' '
+			, ' '
+			, ' '
+			, sysdate
+			, ' '
+			, ' '
+		)
+		SELECT * FROM DUAL
+	</insert>
+	
+	<update id="updateApartCnt" parameterType="kr.or.anyapart.apart.vo.HouseVO" >
+			UPDATE APART
+			SET APT_CNT = (SELECT COUNT(*) FROM house WHERE APT_CODE = #{aptCode} )
+				, APT_AREA = (SELECT SUM(HOUSE_AREA) FROM house WHERE APT_CODE = #{aptCode} )
+			WHERE APT_CODE = #{aptCode}		
+	</update>
+	
+</mapper>

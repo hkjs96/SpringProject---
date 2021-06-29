@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.anyapart.setting.dao.MemberDAO">
+	
+	<select id="retrieveMember" parameterType="kr.or.anyapart.vo.MemberVO" resultType="kr.or.anyapart.vo.MemberVO">
+		SELECT
+		    MEM_ID,
+		    MEM_NICK,
+		    MEM_PASS,
+		    MEM_ROLE,
+		    MEM_DELETE
+		FROM
+		    MEMBER
+		WHERE MEM_ID = #{memId}
+<!--        	<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(memPass)"> -->
+<!-- 			AND MEM_PASS = #{memPass} -->
+<!-- 		</if> -->
+	</select>
+	
+	<update id="updateMember" parameterType="kr.or.anyapart.vo.MemberVO" >
+		UPDATE MEMBER
+		    SET
+		    <trim prefixOverrides=",">
+		        <if test="@org.apache.commons.lang3.StringUtils@isNotBlank(memPass)">
+		        	, MEM_PASS = #{memPass}
+		        </if>
+		        <if test="@org.apache.commons.lang3.StringUtils@isNotBlank(memNick)">
+		        	, MEM_NICK = #{memNick}
+		        </if>
+		        <if test="@org.apache.commons.lang3.StringUtils@isNotBlank(memNick)">
+		        	, MEM_DELETE = #{memDelete}
+		        </if>
+	        </trim>
+		WHERE
+		    MEM_ID = #{memId} 
+	</update>
+	
+	<select id="retrieveResident" parameterType="kr.or.anyapart.vo.MemberVO" resultType="kr.or.anyapart.resident.vo.ResidentVO">
+		SELECT
+		    MEM_ID,
+		    REPLACE(SUBSTR(SUBSTR(HOUSE_CODE,6),2),'H','-') AS HOUSE_CODE,
+		    RES_NAME,
+		    RES_HP,
+		    RES_TEL,
+		    RES_MAIL,
+		    NVL(TO_CHAR(RES_BIRTH,'YYYY-MM-DD'), ' ') AS RES_BIRTH,
+		    NVL(RES_JOB,' ') AS RES_JOB,
+		    RES_MOVEIN,
+		    RES_AUTO
+		FROM
+		    RESIDENT
+		WHERE MEM_ID = #{memId}
+	</select>
+</mapper>

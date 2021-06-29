@@ -1,0 +1,180 @@
+/* 스마일 그래프 */
+.cost_compare						{position:relative; background:#fff; padding:40px 20px 30px; clear:both; }
+.cost_compare .box					{border-radius:15px; padding:0 10px; background:#fff; overflow:hidden; margin-bottom:20px}
+.cost_compare .cost_bar				{height:15px; background:#e3e3e3; position:relative; margin:30px 0 20px; border-radius:15px;}
+.cost_compare .cost_bar .full		{position:absolute; top:0; left:-1px; height:15px; background:#2495c1;border-radius:15px 0 0 15px;}
+.cost_compare .cost_bar .gray		{position:absolute; top:0; left:-1px; height:15px; background:#777 !important; border-radius:15px 0 0 15px;}
+.cost_compare .cost_bar .full_bar	{position:absolute; top:-15px; left:20px; height:8px; background:#e3e3e3;}
+.cost_compare .cost_ico				{height:70px; position:absolute; top:-50px; text-align:center; letter-spacing:-0.05em; z-index:10; }
+.cost_compare .cost_ico .t_1		{color:#222; font-size:12px; font-weight:800; }
+.cost_compare .cost_ico .t_2		{color:#2495c1; font-size:13px; font-weight:800; padding-bottom:8px;}
+.cost_compare .cost_ico .t_3		{color:#8e8e8e; font-size:12px;}
+.cost_compare .cost_ico .t_4		{color:#cd4030; font-size:12px; font-weight:800; margin-top:8px}
+.cost_compare .cost_ico .t_5		{color:#20a95c; font-weight:800; margin-top:8px}
+.cost_compare .cost_ico .t_6		{color:#c9c200; font-weight:800; margin-top:15px}
+
+.cost_compare .cost_ico.pre .img	{background:url(/apti/images/reWeb/price_bg_off.png) center no-repeat; height:35px; *background-size:auto 40px;}
+
+.cost_compare .cost_ico.current .img{background:url(/apti/images/reWeb/energy/energy_bg5-30.png) center no-repeat; height:50px; background-size:30px 30px; }
+.cost_compare .cost_ico.current .img2{background:url(/apti/images/reWeb/energy/energy_bg5-3-30.png) center no-repeat; height:50px; background-size:30px 30px; }
+.cost_compare .cost_ico.current .img3{background:url(/apti/images/reWeb/energy/energy_bg5-2-30.png) center no-repeat; height:50px; background-size:30px 30px; }
+.cost_compare .cost_ico.current .img4{background:url(/apti/images/reWeb/energy/price_bg4_on.png) center no-repeat; height:50px; background-size:30px 30px;}
+
+.cost_compare .cost_txt				{position:absolute; top:-35px; text-align:center;letter-spacing:-0.05em; z-index:10; color:#b6b6b6}
+.cost_compare .cost_txt .price		{border:1px solid #dbdbdb; background:#fff; padding:2px 5px; position:relative; border-radius:15px; font-weight:800; font-size:13px;}
+.cost_compare .cost_txt .price .arrow{background:url(/apti/images/reWeb/ico_arrow5.png) center no-repeat; background-size:auto 100%; height:8px; position:absolute; bottom:-8px; left:0; right:0; display:block}
+.cost_compare .cost_txt .txt		{padding-top:35px; font-size:12px;}
+.cost_compare .cost_ico2			{position:absolute; top:-20px; background:url(/apti/images/reWeb/ico_img4.png) center no-repeat; background-size:100%; width:20px; height:20px; display:block; z-index:10}
+.cost_compare .cost_ico2 span		{margin-left:-9999px}
+
+/* 막대그래프 */
+.cost_graph { position:relative; margin-bottom:20px; height:330px; width:422px; padding-left:10px; overflow:hidden; top:30px;}
+.cost_graph .g1{ position:absolute; width:98%; margin-left:2%; z-index:200;}
+.cost_graph .g1 td{ position:relative; width:7.8%; }
+.cost_graph .g1 td .pos1{ position:absolute; *width:100%; }
+.cost_graph .g1 td .pos1 .ico{ position:relative; width:7px; height:7px; border-radius:20px; border:2px solid #2594c2; background:#fff; margin:0 auto; }
+.cost_graph .g1 td .pos1 .ico span{ position:absolute; top:-20px; left:-20px; color:#2594c2; display:none; font-size:10px; background:#fff;}
+.cost_graph .g1 td.selected .pos1 .ico{background:#2594c2}
+.cost_graph .g1 td.selected .pos1 .ico span{display:block}
+.cost_graph .g1 td .pos1:hover .ico{background:#2594c2}
+.cost_graph .g1 td .pos1:hover .ico span{display:block}
+
+.cost_graph .g2{ position:absolute; top:50px; width:98%; margin-left:2%; z-index:100;}
+.cost_graph .g2 td{ position:relative; width:7.8%; }
+.cost_graph .g2 td .pos2{ position:absolute; *width:100%; }
+.cost_graph .g2 td .pos2 .ico{ position:relative; width:7px; height:7px; border-radius:20px; border:2px solid #b8b8b8; background:#fff; margin:0 auto; }
+.cost_graph .g2 td .pos2 .ico span{ position:absolute; top:-20px; left:-20px; color:#b8b8b8; display:none; font-size:10px; background:#fff;}
+.cost_graph .g2 td.selected .pos2 .ico{background:#ff0000}
+.cost_graph .g2 td.selected .pos2 .ico span{display:block}
+.cost_graph .g2 td .pos2:hover .ico{background:#b8b8b8}
+.cost_graph .g2 td .pos2:hover .ico span{display:block}
+
+.cost_graph .month{ position:absolute; width:100%; top:300px; z-index:300; text-align:center; }
+.cost_graph .month td{ position:relative; width:7.75%; font-size:12px;}
+.cost_graph .month td div{ border-top:1px solid #444; padding-top:5px;}
+.cost_graph .month td div.this_month{ border-top:1px solid #cd4030; padding:5px 5px 0 5px; color:#cd4030; font-weight:bold;}
+
+.cost_graph .comment{position:absolute; left:30px; top:0px;}
+.cost_graph .comment span{margin-right:10px; font-size:12px;}
+.cost_graph .comment span:before{content:'';display:inline-block; zoom:1; *display:inline; width:20px; height:5px; vertical-align:middle; margin-right:7px}
+.cost_graph .comment span.t1:before{background-color:#2495c1;}
+.cost_graph .comment span.t2:before{background-color:#b8b8b8;}
+.cost_graph .price{position:absolute; color:#2495c1; font-size:14px; font-weight:800; text-align:center}
+.cost_graph .data{position:absolute;}
+
+#googleChart {z-index:-1; width:100%; max-width:540px; height:260px; margin-left:-80px;}
+#chartG {display:none;}
+
+/**** pc ****/
+@media all and	(min-width:1101px){
+#manageDetailG2_area {overflow-y:scroll; height:180px;}
+}
+
+
+/**** tablet ****/
+@media all and	(max-width:1100px){
+.cost_graph { position:relative; margin-bottom:20px; height:330px; overflow:hidden; width:100%; top:30px;}
+.cost_graph .comment{position:absolute; left:28px; top:0px;}
+#manageDetailG2_area {display:none;}
+
+/* 
+.cost_graph .month{ position:absolute; width:100%; top:320px; z-index:300; text-align:center; }
+*/
+}
+
+
+/* 에너지 사용량 조회 */
+.energy_data{ background-position:center bottom; background-repeat: no-repeat; background-size:280px 140px; height:140px; position:relative; overflow:hidden; }
+
+.energy_data.date1{ 
+	text-align:center; margin:auto;	
+	background-image:url(/apti/images/reWeb/energy_bg1.png);
+	background-image:url(none)\9; /*ie6,7,8 만 배경그래프빼고 필터이용해서 적용*/
+	filter: progid:DXImageTransform.Microsoft.AlphaImageLoader(src='/apti/images/reWeb/energy_bg1.png',sizingMethod='scale'); width:280px; height:140px;
+}
+.energy_data.date2{ 
+	text-align:center; margin:auto;	
+	background-image:url(/apti/images/reWeb/energy_bg2.png);
+	background-image:url(none)\9; /*ie6,7,8 만 배경그래프빼고 필터이용해서 적용*/
+	filter: progid:DXImageTransform.Microsoft.AlphaImageLoader(src='/apti/images/reWeb/energy_bg2.png',sizingMethod='scale'); width:280px; height:140px;
+}
+.energy_data.date3{ 
+	text-align:center; margin:auto;	
+	background-image:url(/apti/images/reWeb/energy_bg3.png);
+	background-image:url(none)\9; /*ie6,7,8 만 배경그래프빼고 필터이용해서 적용*/
+	filter: progid:DXImageTransform.Microsoft.AlphaImageLoader(src='/apti/images/reWeb/energy_bg3.png',sizingMethod='scale'); width:280px; height:140px;
+}
+.energy_data.date4{ 
+	text-align:center; margin:auto;	
+	background-image:url(/apti/images/reWeb/energy_bg4.png);
+	background-image:url(none)\9; /*ie6,7,8 만 배경그래프빼고 필터이용해서 적용*/
+	filter: progid:DXImageTransform.Microsoft.AlphaImageLoader(src='/apti/images/reWeb/energy_bg4.png',sizingMethod='scale'); width:280px; height:140px;
+}
+.energy_data div	{
+	background-position:center center; background-repeat: no-repeat; background-size:160px 160px; position:relative; top:60px;
+	text-align:center; margin:auto;	
+	background-image:url(/apti/images/reWeb/circle_arrow.png);
+	background-image:url(none)\9; /*ie6,7,8 만 배경그래프빼고 필터이용해서 적용*/
+	filter: progid:DXImageTransform.Microsoft.AlphaImageLoader(src='/apti/images/reWeb/circle_arrow.png',sizingMethod='scale'); width:160px; height:160px; 
+}
+
+.energy_data #rotate	{ -webkit-transform-origin:50% 50%; -wos-transform-origin:50% 50%; -ms-transform-origin:50% 50%; -webkit-transform: rotate(45deg); -wos-transform: rotate(45deg); -ms-transform: rotate(45deg); 
+/*
+	ie8이하에서 회전시도했으나 안됨.
+	-ms-filter: "progid:DXImageTransform.Microsoft.BasicImage(rotation=3)"; 
+	filter: progid:DXImageTransform.Microsoft.BasicImage(rotation=3); 
+*/
+}
+
+.energy_data .txt{color:#fff; text-align:center; position:relative; top:-60px; font-size:11px; line-height:1.2em;}
+.energy_data .txt strong{font-size:14px}
+
+.energy_data2{overflow:hidden;  clear:both; padding-top:30px; margin-bottom:20px}
+.energy_data2 .tit{font:15px/150% 'NanumGothicBold'; color:#222;  margin-bottom:20px; clear:both;}
+.energy_data2 .use{overflow:hidden; width:100%; display:table}
+.energy_data2 .use li{text-align:center; padding:25px 0; color:#fff; font-size:14px; display:table-cell;}
+.energy_data2 .use .child1 {background:#808080}
+.energy_data2 .use .child2 {background:#949494}
+.energy_data2 .use .child3 {background:#bbbbbb}
+.energy_data2 .use .child4 {background:#cbcbcb}
+.energy_data2 .use .child5 {background:#e0e0e0}
+
+/* 에너지 저년동월과 당월비교 */
+.energy_graph2{margin-bottom:20px; position:relative; padding-top:100px; height:150px; }
+.energy_graph2 .comment{position:absolute; left:0px; top:0px;}
+.energy_graph2 .comment span{margin-right:10px; font-size:12px;}
+.energy_graph2 .comment span:before{content:'';display:inline-block; zoom:1; *display:inline; width:48px; height:38px; vertical-align:middle; margin-right:3px}
+.energy_graph2 .comment span.t1:before{background:url(/apti/images/reWeb/graph_ico_1.gif) center no-repeat; background-size:100% auto}
+.energy_graph2 .comment span.t2:before{background:url(/apti/images/reWeb/graph_ico_2.gif) center top no-repeat; background-size:auto 75% }
+.energy_graph2 .comment span.t3:before{background-color:#2898c4;}
+.energy_graph2 .comment span.t4:before{background-color:#dddddd;}
+
+.energy_graph2 .g1{width:100%;position:absolute; top:30px;}
+.energy_graph2 .g1 td{width:7.69%;   height:80px;  position:relative}
+.energy_graph2 .g1 td .pos{position: absolute;	width: 100%;	height: 15px;}
+.energy_graph2 .g1 td .pos .ico{border-radius:20px; border:2px solid #2594c2; background:#fff; width:7px; height:7px; margin:0 auto; position:relative}
+.energy_graph2 .g1 td .pos .ico span{color:#2594c2; position:absolute; top:-20px; left:-20px; display:none; font-size:10px; background:#fff;}
+.energy_graph2 .g1 td.selected .pos .ico{background:#2594c2}
+.energy_graph2 .g1 td.selected .pos .ico span{display:block}
+.energy_graph2 .g1 td .pos:hover .ico{background:#2594c2}
+.energy_graph2 .g1 td .pos:hover .ico span{display:block}
+
+
+.energy_graph2 .g2{position:relative; bottom:20px; width:100%; height:100%;}
+.energy_graph2 .g2 td{position:relative; text-align:center; vertical-align:bottom; width:7.69%}
+/*.energy_graph2 .g2 td:hover .number{display:block;}*/
+
+.energy_graph2 .g2 td .number{color:#68c1df; font-size:10px; padding-bottom:3px;}
+.energy_graph2 .g2 td .bar{background:#a2a2a2; width:30%; margin:0 auto}
+.energy_graph2 .g2 td .bar-thisMonth {position:absolute; left:20%; bottom:0; background:#2898c4; width:25%; }
+.energy_graph2 .g2 td .bar-thisMonth .number{position:absolute; top:-20px; left:center; margin-left:-50%; color:#68c1df; font-size:10px; padding-bottom:3px;}
+.energy_graph2 .g2 td .bar-lastYear {position:absolute;  right:20%; bottom:0; background:#dddddd; width:25%; }
+.energy_graph2 .g2 td .month1{border-top:1px solid #000; padding-top:5px}
+.energy_graph2 .g2 td.selected .bar{background:#9ddff5}
+.energy_graph2 .g2 td.selected .number{display:block}
+
+.energy_graph2 .month{ position:absolute; width:100%; top:230px; z-index:300; text-align:center; }
+.energy_graph2 .month td{ position:relative; width:7.75%; font-size:12px;}
+.energy_graph2 .month td div{ border-top:1px solid #444; padding-top:5px; font-size:12px;}
+.energy_graph2 .month td div.this_month{ border-top:1px solid #cd4030; padding-top:5px; color:#cd4030; font-weight:bold;}
+.energy_graph2 .month td div .iconEng img	{width:20px; padding-right:2px; vertical-align:middle;}

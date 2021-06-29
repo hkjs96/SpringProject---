@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE tiles-definitions PUBLIC "-//Apache Software Foundation//DTD Tiles Configuration 3.0//EN" "http://tiles.apache.org/dtds/tiles-config_3_0.dtd" >
+<tiles-definitions>
+  	<definition name="parentV" template="/WEB-INF/views/vendor/templateV.jsp">
+		<put-attribute name="preScriptV" value="/includeeVendor/preScriptV.jsp"/>
+		<put-attribute name="topMenuV" value="/includeeVendor/topMenuV.jsp"/>
+		<put-attribute name="footerV" value="/includeeVendor/footerV.jsp"/>
+	</definition>
+	
+	<definition name="indexV" extends="parentV">
+		<put-attribute name="contentsV" value="/WEB-INF/views/vendor/indexV.jsp"/>
+	</definition>
+	<definition name="vendor/loginV" extends="parentV">
+		<put-attribute name="contentsV" value="/WEB-INF/views/vendor/loginV.jsp"/>
+	</definition>
+	<definition name="noticeV/*" extends="parentV">
+		<put-attribute name="contentsV" value="/WEB-INF/views/vendor/noticeV/{1}.jsp"/>
+	</definition>
+	<definition name="qna/*" extends="parentV">
+		<put-attribute name="contentsV" value="/WEB-INF/views/vendor/qna/{1}.jsp"/>
+	</definition>
+	<definition name="apart/*" extends="parentV">
+		<put-attribute name="contentsV" value="/WEB-INF/views/vendor/apart/{1}.jsp"/>
+	</definition>
+	<definition name="vendor/*" extends="parentV">
+		<put-attribute name="contentsV" value="/WEB-INF/views/vendor/{1}.jsp"/>
+	</definition>
+</tiles-definitions>

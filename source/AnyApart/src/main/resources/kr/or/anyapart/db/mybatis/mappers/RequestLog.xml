@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.anyapart.commonsweb.dao.RequestLogDAO">
+
+	<insert id="insertRequestLog" parameterType="kr.or.anyapart.vo.RequestLogVO">
+		INSERT INTO REQUESTLOG (
+			REQ_SEQ
+			,REQ_USER
+			,REQ_URL
+			,REQ_DATE
+		) VALUES (
+			SEQ_REQUESTLOG.NEXTVAL
+			,#{reqUser, jdbcType=VARCHAR}
+			,#{reqUrl, jdbcType=VARCHAR}
+			,sysdate
+		)
+	</insert>
+</mapper>

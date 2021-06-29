@@ -1,0 +1,275 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.anyapart.payment.dao.PaymentDAO">
+	<sql id="forMonthSearchFrag">
+		<trim prefix=" WHERE" prefixOverrides="AND">
+		<if test="searchVO!=null">
+			<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchVO.searchAptCode)">
+				 AND INSTR(A.MEM_ID, #{searchVO.searchAptCode}) > 0
+			</if>
+			<if test="searchDetail!=null">
+					<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.payYear)">
+						AND INSTR(PAY_YEAR, #{searchDetail.payYear}) > 0
+					</if>
+					<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.payMonth)">
+						AND INSTR(PAY_MONTH, #{searchDetail.payMonth}) > 0
+					</if>
+					<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.employee.empName)">
+						AND INSTR(EMP_NAME, #{searchDetail.employee.empName}) > 0
+					</if>
+					<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.employee.positionCode)">
+						AND INSTR(A.POSITION_CODE, #{searchDetail.employee.positionCode}) > 0
+					</if>
+				</if>
+		</if>	
+		</trim>
+	</sql>
+	
+	
+	<resultMap type="kr.or.anyapart.payment.vo.PaymentVO" id="payMap" autoMapping="true">
+		<id property="payNo" column="EMPPAYNO"/>
+		<association property="employee" javaType="kr.or.anyapart.employee.vo.EmployeeVO" autoMapping="true"></association>
+	</resultMap>
+
+	<update id="updatePayInfo" parameterType="kr.or.anyapart.employee.vo.EmployeeVO">
+		UPDATE EMPLOYEE
+		  SET 
+	        EMP_BANK = #{empBank, jdbcType=VARCHAR}
+	      , EMP_ACCT = #{empAcct, jdbcType=VARCHAR}
+		WHERE MEM_ID = #{memId, jdbcType=VARCHAR} 
+	</update>
+	
+	<select id="selectPayForMonthList" parameterType="kr.or.anyapart.vo.PagingVO" resultMap="payMap">
+		SELECT E.* 
+		  FROM (
+		    SELECT D.*, ROWNUM RNUM
+		      FROM (SELECT
+		            A.MEM_ID
+		            ,PAY_NO EMPPAYNO
+		            ,EMP_NAME
+		            ,C.POSITION_NAME
+		            ,PAY_YEAR
+		            ,PAY_MONTH
+		            ,PAY_BASE
+		            ,PAY_PLUS
+		            ,PAY_MEAL
+		            ,PAY_HEALTH
+		            ,PAY_PENSION
+		            ,PAY_EMPLOYEE
+		            ,PAY_INCOMETAX
+		            ,PAY_LOCAL_INCOMETAX
+		            ,(PAY_BASE+PAY_PLUS+PAY_MEAL)-(PAY_PENSION+PAY_HEALTH+PAY_EMPLOYEE+PAY_INCOMETAX+PAY_LOCAL_INCOMETAX) PAY_REALSUM
+		            FROM EMPLOYEE A RIGHT OUTER JOIN PAYMENT B ON(A.MEM_ID=B.MEM_ID)
+		                            LEFT OUTER JOIN POSITION C ON(A.POSITION_CODE=C.POSITION_CODE)
+		          	<include refid="forMonthSearchFrag"/>
+		            ORDER BY PAY_YEAR desc, TO_NUMBER(PAY_MONTH) desc
+		            ) D
+		)E
+		WHERE RNUM BETWEEN #{startRow} AND #{endRow} 
+	</select>
+	
+	<select id="selectPayForMonthCount" parameterType="kr.or.anyapart.vo.PagingVO" resultType="int">
+		SELECT COUNT(*)
+		  FROM EMPLOYEE A RIGHT OUTER JOIN PAYMENT B ON(A.MEM_ID=B.MEM_ID)
+		                  LEFT OUTER JOIN POSITION C ON(A.POSITION_CODE=C.POSITION_CODE)
+		<include refid="forMonthSearchFrag"/>                  
+	</select>
+	
+	<select id="selectPayForMonth" parameterType="kr.or.anyapart.payment.vo.PaymentVO" resultMap="payMap">
+		SELECT
+            PAY_NO EMPPAYNO
+            ,EMP_NAME
+		    ,C.POSITION_NAME "POSITION_CODE" 
+            ,PAY_YEAR
+            ,PAY_MONTH
+            ,PAY_BASE
+            ,PAY_PLUS
+            ,PAY_MEAL
+            ,PAY_HEALTH
+            ,PAY_PENSION
+            ,PAY_EMPLOYEE
+            ,PAY_INCOMETAX
+            ,PAY_LOCAL_INCOMETAX
+            ,PAY_BASE+PAY_PLUS+PAY_MEAL PAY_TMPSUM
+	        ,PAY_PENSION+PAY_HEALTH+PAY_EMPLOYEE+PAY_INCOMETAX+PAY_LOCAL_INCOMETAX PAY_DEDUCTSUM
+	        ,(PAY_BASE+PAY_PLUS+PAY_MEAL)-(PAY_PENSION+PAY_HEALTH+PAY_EMPLOYEE+PAY_INCOMETAX+PAY_LOCAL_INCOMETAX) PAY_REALSUM
+            ,A.MEM_ID
+            FROM EMPLOYEE A RIGHT OUTER JOIN PAYMENT B ON(A.MEM_ID=B.MEM_ID)
+		                            LEFT OUTER JOIN POSITION C ON(A.POSITION_CODE=C.POSITION_CODE)
+            WHERE PAY_NO = #{payNo}
+	</select>
+	
+	<select id="selectPaySum" parameterType="kr.or.anyapart.payment.vo.PaymentVO" resultType="kr.or.anyapart.payment.vo.PaymentVO">
+		WITH TMPPAY AS(
+		    SELECT
+		        DISTINCT MEM_ID
+		        , TRUNC( POSITION_PAY , -1 ) AS PAY_BASE
+		        , TRUNC( POSITION_PAY / 100 * 10 , -1) AS PAY_PLUS
+		        , TRUNC( POSITION_PAY / 100 * 5 , -1) AS PAY_MEAL
+		        , TRUNC( POSITION_PAY * (SELECT FR FROM FARERATE WHERE FR_ID = 'R_PENSION')/100, -1) AS PAY_PENSION
+		        , TRUNC( POSITION_PAY * (SELECT FR FROM FARERATE WHERE FR_ID = 'R_HEALTH')/100, -1 ) AS PAY_HEALTH
+		        , TRUNC(((POSITION_PAY * (SELECT FR FROM FARERATE WHERE FR_ID = 'R_HEALTH')/100)/100) * (SELECT FR FROM FARERATE WHERE FR_ID = 'R_YOYANG'), -1)AS PAY_YOYANG
+		        , TRUNC( POSITION_PAY * (SELECT FR FROM FARERATE WHERE FR_ID = 'R_EMPLOYEE')/100 , -1) AS PAY_EMPLOYEE
+		        , TRUNC( POSITION_PAY * (SELECT FR FROM FARERATE WHERE FR_ID = 'R_INCOME')/100, -1) AS PAY_INCOMETAX
+		        , TRUNC(((POSITION_PAY  * (SELECT FR FROM FARERATE WHERE FR_ID = 'R_INCOME')/100)/100) * (SELECT FR FROM FARERATE WHERE FR_ID = 'R_LOC_INCOME'), -1) AS PAY_LOCAL_INCOMETAX
+		      FROM
+		        EMPLOYEE A LEFT OUTER JOIN POSITION B ON (A.POSITION_CODE = B.POSITION_CODE)
+		        , FARERATE C
+		      WHERE MEM_ID = #{memId})
+		      
+		SELECT PAY_BASE
+		       ,PAY_PLUS
+		       ,PAY_MEAL
+		       ,PAY_PENSION
+		       ,TRUNC(PAY_HEALTH+PAY_YOYANG) PAY_HEALTH
+		       ,PAY_EMPLOYEE
+		       ,PAY_INCOMETAX
+		       ,PAY_LOCAL_INCOMETAX
+		       ,PAY_BASE+PAY_PLUS+PAY_MEAL PAY_TMPSUM
+		       ,PAY_PENSION+PAY_HEALTH+PAY_EMPLOYEE+PAY_INCOMETAX+PAY_LOCAL_INCOMETAX PAY_DEDUCTSUM
+		       ,(PAY_BASE+PAY_PLUS+PAY_MEAL)-(PAY_PENSION+PAY_HEALTH+PAY_EMPLOYEE+PAY_INCOMETAX+PAY_LOCAL_INCOMETAX) PAY_REALSUM
+		  FROM TMPPAY
+	</select>
+	
+	
+	<insert id="insertPayForMonth" parameterType="kr.or.anyapart.payment.vo.PaymentVO">
+		<selectKey order="BEFORE" keyProperty="payNo" resultType="int">
+			SELECT NVL(MAX(PAY_NO), 0)+1
+			FROM PAYMENT
+		</selectKey>
+		
+		INSERT INTO PAYMENT (
+				    PAY_NO,
+				    PAY_YEAR,
+				    PAY_MONTH,
+				    PAY_BASE,
+				    PAY_PLUS,
+				   	PAY_MEAL,
+				    PAY_HEALTH,
+				    PAY_PENSION,
+				    PAY_EMPLOYEE,
+				    PAY_OVERTIME,
+				    PAY_INCOMETAX,
+				    PAY_LOCAL_INCOMETAX,
+				    MEM_ID
+				) VALUES (
+				  #{payNo, jdbcType=NUMERIC}
+				, #{payYear, jdbcType=VARCHAR}
+				, #{payMonth, jdbcType=VARCHAR}
+				, #{payBase, jdbcType=NUMERIC}
+				, #{payPlus, jdbcType=NUMERIC}
+				, #{payMeal, jdbcType=NUMERIC}
+				, #{payHealth, jdbcType=NUMERIC}
+				, #{payPension, jdbcType=NUMERIC}
+				, #{payEmployee, jdbcType=NUMERIC}
+				, 0
+				, #{payIncometax, jdbcType=NUMERIC}
+				, #{payLocalIncometax, jdbcType=NUMERIC}
+				, #{memId, jdbcType=VARCHAR}
+				)
+	</insert>
+	
+	<delete id="deletePayForMonth" parameterType="kr.or.anyapart.payment.vo.PaymentVO">
+		DELETE FROM PAYMENT
+		WHERE PAY_NO = #{payNo}
+	</delete>
+	
+	<update id="updatePayForMonth" parameterType="kr.or.anyapart.payment.vo.PaymentVO">
+		UPDATE PAYMENT
+		   SET
+			PAY_YEAR               = #{payYear, jdbcType=VARCHAR}
+			,PAY_MONTH              = #{payMonth, jdbcType=VARCHAR}
+			,PAY_BASE               = #{payBase, jdbcType=NUMERIC}
+			,PAY_PLUS               =  #{payPlus, jdbcType=NUMERIC}
+			,PAY_MEAL               =  #{payMeal, jdbcType=NUMERIC}
+			,PAY_HEALTH             = #{payHealth, jdbcType=NUMERIC}
+			,PAY_PENSION            =  #{payPension, jdbcType=NUMERIC}
+			,PAY_EMPLOYEE           = #{payEmployee, jdbcType=NUMERIC}
+			,PAY_INCOMETAX          = #{payIncometax, jdbcType=NUMERIC}
+			,PAY_LOCAL_INCOMETAX    = #{payLocalIncometax, jdbcType=NUMERIC}
+		WHERE PAY_NO=#{payNo}	
+			
+	</update>
+	
+<!-- 	<select id="selectPayBookList" parameterType="kr.or.anyapart.vo.PagingVO" resultMap="payMap"> -->
+<!-- 		SELECT E.* -->
+<!--         FROM(SELECT D.*, ROWNUM RNUM -->
+<!-- 		      FROM (SELECT PAY_YEAR -->
+<!--                         ,PAY_MONTH -->
+<!--                         ,EMP_NAME -->
+<!--                         ,POSITION_NAME -->
+<!--                         ,PAY_BASE -->
+<!--                         ,PAY_PLUS -->
+<!--                         ,PAY_MEAL -->
+<!--                         ,PAY_HEALTH -->
+<!--                         ,PAY_PENSION -->
+<!--                         ,PAY_EMPLOYEE -->
+<!--                         ,PAY_INCOMETAX -->
+<!--                         ,PAY_LOCAL_INCOMETAX -->
+<!--                   FROM EMPLOYEE A RIGHT OUTER JOIN PAYMENT B ON(A.MEM_ID=B.MEM_ID) -->
+<!--                                   LEFT OUTER JOIN POSITION C ON(A.POSITION_CODE=C.POSITION_CODE) -->
+<!--                                   ORDER BY PAY_YEAR desc, PAY_MONTH desc   -->
+<!--             )D -->
+<!-- )E -->
+<!-- WHERE RNUM BETWEEN 1 AND 10; -->
+<!-- 	</select> -->
+
+	<select id="selectThreeMonthPayList" parameterType="kr.or.anyapart.payment.vo.PaymentVO" resultType="kr.or.anyapart.payment.vo.PaymentVO">
+		SELECT B.PAY_YEAR,
+		       B.PAY_MONTH,
+		       TO_NUMBER(TO_CHAR(LAST_DAY(TO_DATE(B.PAY_YEAR||LPAD(B.PAY_MONTH, 2, '0'),'YYYYMM')), 'DD')) PAY_LASTDAY
+		     ,TRUNC((B.PAY_BASE
+		      +B.PAY_PLUS
+		      +B.PAY_OVERTIME
+		      +B.PAY_MEAL
+		      +B.PAY_HEALTH
+		      +B.PAY_PENSION
+		      +B.PAY_EMPLOYEE
+		      +B.PAY_INCOMETAX
+		      +B.PAY_LOCAL_INCOMETAX), -1) PAY_TMPSUM
+		     , TRUNC((B.PAY_HEALTH
+		      +B.PAY_PENSION
+		      +B.PAY_EMPLOYEE
+		      +B.PAY_INCOMETAX
+		      +B.PAY_LOCAL_INCOMETAX), -1) PAY_DEDUCTSUM
+		     , TRUNC((B.PAY_BASE
+		      +B.PAY_PLUS
+		      +B.PAY_OVERTIME
+		      +B.PAY_MEAL), -1) PAY_REALSUM
+		  FROM(
+		        SELECT A.*, ROWNUM RNUM
+		          FROM(
+		            SELECT * 
+		              FROM PAYMENT
+		             WHERE MEM_ID=#{memId}
+		             ORDER BY PAY_YEAR DESC, TO_NUMBER(PAY_MONTH) DESC
+		            ) A
+		        ) B
+		  <![CDATA[
+		  WHERE RNUM <= 3
+		  ]]>
+	</select>
+	
+	<select id="selectTmpSvrc" parameterType="kr.or.anyapart.payment.vo.PaymentVO" resultType="kr.or.anyapart.payment.vo.SeveranceVO">
+		SELECT TRUNC(SUM((PAY_BASE+PAY_PLUS+PAY_OVERTIME+PAY_MEAL)), -1) SVRC_THREETOTAL
+		       ,TRUNC((SUM((PAY_BASE+PAY_PLUS+PAY_OVERTIME+PAY_MEAL))/3/209), -1) SVRC_PAYFORTIME
+		       ,TRUNC((SUM((PAY_BASE+PAY_PLUS+PAY_OVERTIME+PAY_MEAL))/3/209)*8, -1) SVRC_PAYFORDAY
+		       , TRUNC(((SUM((PAY_BASE+PAY_PLUS+PAY_OVERTIME+PAY_MEAL))/3/209)*8 * AVG(D.EMP_OFF)), -1) SVRC_NOTUSEOFF
+		       , TRUNC(((SUM((PAY_BASE+PAY_PLUS+PAY_OVERTIME+PAY_MEAL))/3/209)*8 * AVG(D.EMP_OFF))*3/12, -1) SVRC_NOTUSEOFFPLUS
+		       , TRUNC(SUM((PAY_BASE+PAY_PLUS+PAY_OVERTIME+PAY_MEAL))/SUM(TO_NUMBER(TO_CHAR(LAST_DAY(TO_DATE(D.PAY_YEAR||LPAD(D.PAY_MONTH, 2, '0'),'YYYYMM')), 'DD'))), -1) SVRC_AVGFORDAY
+		       , TRUNC((SUM((PAY_BASE+PAY_PLUS+PAY_OVERTIME+PAY_MEAL))/80)*30*(365/365), -1) SVRC_COST
+	      FROM (SELECT C.*, ROWNUM RNUM
+	              FROM
+		             (SELECT A.* , B.EMP_OFF
+		                FROM PAYMENT A LEFT OUTER JOIN EMPLOYEE B ON(A.MEM_ID=B.MEM_ID)
+		               WHERE A.MEM_ID=#{memId}
+		               ORDER BY PAY_YEAR DESC, PAY_MONTH DESC
+		             ) C
+	        ) D
+	   <![CDATA[
+		  WHERE RNUM <= 3
+	   ]]>
+	
+	
+	</select>
+</mapper>

@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.anyapart.asset.repair.dao.RepairDAO">
+
+	<sql id="searchFrag">
+		<where>
+			B.APT_CODE = #{searchVO.searchAptCode}
+			<if test="searchDetail!=null and @org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.endDay) and @org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.startDay)">	
+				AND REPAIR_DATE BETWEEN TO_DATE(#{searchDetail.startDay}, 'YYYY/MM/DD') AND TO_DATE(#{searchDetail.endDay}, 'YYYY/MM/DD')
+			</if>
+			<if test="searchDetail!=null and @org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.endDay) and @org.apache.commons.lang3.StringUtils@isBlank(searchDetail.startDay)">	
+				AND REPAIR_DATE TO_DATE(#{searchDetail.endDay}, 'YYYY/MM/DD')
+			</if>
+			<if test="searchDetail!=null and @org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.startDay) and @org.apache.commons.lang3.StringUtils@isBlank(searchDetail.endDay)">	
+				AND REPAIR_DATE TO_DATE(#{searchDetail.startDay}, 'YYYY/MM/DD')
+			</if>
+			<if test="searchDetail!=null and @org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.prodId)">
+		 		AND INSTR(A.PROD_ID , #{searchDetail.prodId}) > 0
+		 	</if>
+			<if test="searchDetail!=null and @org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.prodCode)">
+		 		AND INSTR(B.PROD_CODE , #{searchDetail.prodCode}) > 0
+		 	</if>
+			<if test="searchVO!=null and @org.apache.commons.lang3.StringUtils@isNotBlank(searchVO.searchWord)">
+		 		AND INSTR(REPAIR_CONTENT , #{searchVO.searchWord}) > 0
+		 	</if>
+		</where>
+		ORDER BY REPAIR_DATE DESC, REPAIR_NO DESC 
+	</sql>
+
+	<select id="countRepair" parameterType="kr.or.anyapart.vo.PagingVO" resultType="int">
+		SELECT
+		   count(*)
+		FROM
+		    REPAIR A LEFT OUTER JOIN PROD B ON ( A.PROD_ID = B.PROD_ID)
+		<include refid="searchFrag"/>
+	</select>
+
+	<select id="retrieveRepairList" parameterType="kr.or.anyapart.vo.PagingVO" resultType="kr.or.anyapart.asset.vo.RepairVO">
+		SELECT B.*
+	    FROM (
+	        SELECT A.*, ROWNUM RNUM
+	            FROM ( 
+	                SELECT
+	                    A.PROD_ID,
+	                    B.PROD_NAME,
+	                    TO_CHAR(REPAIR_DATE, 'YYYY-MM-DD') AS REPAIR_DATE,
+	                    REPAIR_CONTENT,
+	                    REPAIR_PRICE,
+	                    REPAIR_NO
+	                FROM
+	                    REPAIR A LEFT OUTER JOIN PROD B ON ( A.PROD_ID = B.PROD_ID)
+	                <include refid="searchFrag"/>
+			) A
+	    ) B
+	    <![CDATA[		
+			WHERE RNUM >= #{startRow} AND RNUM <= #{endRow}
+		]]>
+	</select>
+
+	<insert id="insertRepair" parameterType="kr.or.anyapart.asset.vo.RepairVO">
+		INSERT INTO REPAIR (
+			REPAIR_NO,
+		    REPAIR_DATE,
+		    REPAIR_CONTENT,
+		    REPAIR_PRICE,
+		    PROD_ID	
+		) VALUES (
+			( SELECT MAX(REPAIR_NO) + 1
+		        FROM REPAIR
+			)
+			, #{repairDate}
+			, #{repairContent}
+			, #{repairPrice}
+			, #{prodId}
+		)
+	</insert>
+
+	<update id="updateRepair" parameterType="kr.or.anyapart.asset.vo.RepairVO">
+		UPDATE REPAIR
+		SET  
+			REPAIR_DATE = #{repairDate}
+			, REPAIR_CONTENT = #{repairContent}
+			<if test="repairPrice != null">
+				, REPAIR_PRICE = #{repairPrice, jdbcType=NUMERIC}
+			</if>
+		WHERE REPAIR_NO = #{repairNo}
+	</update>
+	
+	<select id="deleteCheck" parameterType="kr.or.anyapart.asset.vo.RepairVO" resultType="int">
+		SELECT count(*)
+		FROM REPAIR A LEFT OUTER JOIN PROD B ON(A.PROD_ID = B.PROD_ID)
+              LEFT OUTER JOIN EMPLOYEE C ON(B.APT_CODE = C.APT_CODE)
+		WHERE C.MEM_ID = #{member.memId }
+  		AND REPAIR_NO = #{repairNo, jdbcType=NUMERIC }
+	</select>
+	
+	<delete id="deleteRepair" parameterType="kr.or.anyapart.asset.vo.RepairVO">
+		DELETE FROM REPAIR
+		WHERE
+		    REPAIR_NO = #{repairNo, jdbcType=NUMERIC }
+	</delete>
+	
+</mapper>

@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.anyapart.board.freeboard.dao.IReplyDAO">
+	<insert id="insertReply" parameterType="kr.or.anyapart.board.vo.ReplyVO">
+		<selectKey keyProperty="repNo" resultType="int" order="BEFORE">
+			SELECT NVL(MAX(REP_NO), 0) + 1 FROM REPLY
+		</selectKey>
+		
+		INSERT INTO REPLY (
+		    BO_NO
+		    , REP_WRITER
+		    , REP_NO
+		    , REP_CONTENT
+		    , REP_DATE
+		    <if test="repParent!=null and repParent gt 0">
+		    	, REP_PARENT
+		    </if>
+		    <if test="repDepth!=null and repDepth gt 0">
+		    	, REP_DEPTH
+		    </if>
+		) VALUES (
+		     #{boNo, jdbcType=NUMERIC}
+		    , #{repWriter, jdbcType=VARCHAR}
+		    , #{repNo, jdbcType=NUMERIC}
+		    , #{repContent, jdbcType=VARCHAR}
+		    , sysdate
+		    <if test="repParent!=null and repParent gt 0">
+		    	, #{repParent, jdbcType=NUMERIC}
+		    </if>
+		    <if test="repDepth!=null and repDepth gt 0">
+		    	, #{repDepth, jdbcType=NUMERIC}
+		    </if>
+		)
+	</insert>
+	
+	<sql id="whereClause">
+		WHERE BO_NO = #{searchDetail.boNo}
+	</sql>
+	<select id="selectReplyCount" parameterType="kr.or.anyapart.vo.PagingVO" resultType="int">
+		SELECT COUNT(*) FROM REPLY
+		<include refid="whereClause" />  
+	</select>
+	<select id="selectReplyList" parameterType="kr.or.anyapart.vo.PagingVO" resultType="kr.or.anyapart.board.vo.ReplyVO">
+		SELECT B.*
+		FROM (
+			SELECT A.*, ROWNUM RNUM 
+			FROM (
+				<![CDATA[
+				SELECT
+					REP_NO
+					,REP_WRITER REP_WRITER_ID
+					,MEMBER.MEM_NICK REP_WRITER
+					,DECODE(REP_DEPTH, 1, '', LPAD('└re:', 6*2*(REP_DEPTH-1)+3, '&nbsp;'))  || REP_CONTENT AS "REP_CONTENT"
+					,TO_CHAR(REP_DATE, 'YYYY-MM-DD HH:MI') REP_DATE
+				    ,BO_NO
+				    ,REP_PARENT
+				    ,REP_DEPTH
+				FROM REPLY
+				]]>
+				INNER JOIN MEMBER ON (MEMBER.MEM_ID = REPLY.REP_WRITER)
+				<include refid="whereClause" />  
+				START WITH REP_PARENT IS NULL
+				CONNECT BY PRIOR REP_NO = REP_PARENT
+				ORDER SIBLINGS BY REP_NO DESC
+			)  A
+		)  B
+		WHERE RNUM BETWEEN #{startRow} AND #{endRow}
+	</select>
+	<update id="updateReply" parameterType="kr.or.anyapart.board.vo.ReplyVO">
+		UPDATE REPLY
+		SET
+			REP_CONTENT = #{repContent, jdbcType=VARCHAR}
+		WHERE REP_NO = #{repNo}
+	</update>
+
+
+<!-- 	<delete id="deleteReply" parameterType="ReplyVO"> -->
+<!-- 		DELETE FROM REPLY -->
+<!-- 		WHERE REP_NO = #{rep_no} AND REP_PASS = #{rep_pass} -->
+<!-- 	</delete> -->
+<!-- 	계층 구조상의 덧글을 모두 지움. -->
+	<delete id="deleteReply" parameterType="kr.or.anyapart.board.vo.ReplyVO">
+		DELETE FROM REPLY 
+        WHERE REP_NO IN (
+            SELECT REP_NO 
+            FROM REPLY
+            START WITH REP_NO = #{repNo}
+            CONNECT BY PRIOR REP_NO = REP_PARENT
+        )
+	</delete>
+
+</mapper>

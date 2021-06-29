@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.anyapart.board.officeqna.dao.IOfficeQnaDAO">
+   <sql id="searchFrag">
+      WHERE BO_TYPE='OQNA'  
+      <if test="searchVO!=null">
+         <if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchVO.searchAptCode)">
+				 AND INSTR(BO_WRITER, #{searchVO.searchAptCode}) > 0
+		</if>
+        <if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchVO.searchWord)">
+         <choose>
+            <when test="'title'.equals(searchVO.searchType)">
+               AND INSTR(BO_TITLE, #{searchVO.searchWord}) > 0
+            </when>
+            <when test="'writer'.equals(searchVO.searchType)">
+               AND INSTR(B.MEM_NICK, #{searchVO.searchWord}) > 0
+            </when>
+            <when test="'content'.equals(searchVO.searchType)">
+               AND INSTR(BO_CONTENT, #{searchVO.searchWord}) > 0
+            </when>
+            <otherwise>
+               AND 
+               ( INSTR(BO_CONTENT, #{searchVO.searchWord}) > 0
+               OR INSTR(B.MEM_NICK, #{searchVO.searchWord}) > 0
+               OR INSTR(BO_TITLE, #{searchVO.searchWord}) > 0 )
+            </otherwise>
+         </choose>
+       </if>
+      </if>
+   </sql>
+  
+   <resultMap type="kr.or.anyapart.board.vo.BoardVO" id="boardMap" autoMapping="true">
+      <id property="boNo" column="BONO"/>
+      <collection property="attachList" ofType="kr.or.anyapart.vo.AttachVO" autoMapping="true">
+         <id property="attSn" column="ATT_SN"/>
+      </collection>
+   </resultMap>
+   
+   <select id="selectOfficeQnaBoardCount" parameterType="kr.or.anyapart.vo.PagingVO" resultType="int">
+      SELECT COUNT(*)
+      FROM BOARD A INNER JOIN MEMBER B ON (A.BO_WRITER=B.MEM_ID)
+      <include refid="searchFrag"/> 
+   </select>
+
+   <select id="selectOfficeQnaBoardList" parameterType="kr.or.anyapart.vo.PagingVO" resultType="kr.or.anyapart.board.vo.BoardVO">
+   	WITH BOARDTB AS(
+	 SELECT BO_NO
+	        ,BO_PARENT
+	 FROM BOARD
+	 WHERE BO_TYPE='OQNA'  
+	)
+    
+    SELECT B.*
+      FROM ( 
+       SELECT ROWNUM RNUM, A.*
+       <![CDATA[
+         FROM(SELECT A.BO_NO, 
+                      DECODE(LEVEL, 1, '', LPAD('ㄴRE:',6*2*(BO_DEPTH-1) + 5,'&nbsp;'))
+                      ||BO_TITLE AS "BO_TITLE"
+                     ,BO_CONTENT
+                     ,B.MEM_NICK AS "BO_WRITER"
+                     ,TO_CHAR(BO_DATE, 'YYYY-MM-DD HH:MI') BO_DATE, BO_HIT
+                     ,A.BO_PARENT
+                     ,BO_DEPTH
+                     ,BO_DELETE
+                     ,C.BO_PARENT "ANSWER_FLAG"
+                 FROM BOARD A INNER JOIN MEMBER B ON (A.BO_WRITER=B.MEM_ID)
+                 			 LEFT JOIN BOARDTB C ON (A.BO_NO = C.BO_PARENT)         
+                 ]]>
+                 <include refid="searchFrag"/> 
+                START WITH A.BO_PARENT IS NULL
+              CONNECT BY PRIOR A.BO_NO = A.BO_PARENT 
+                ORDER SIBLINGS BY A.BO_NO DESC
+             )A
+       )B
+       WHERE RNUM BETWEEN #{startRow} AND #{endRow}
+   </select>
+   
+   <select id="selectOfficeQnaBoard" parameterType="kr.or.anyapart.board.vo.BoardVO" resultMap="boardMap">
+      SELECT 
+         A.BO_NO BONO
+        ,BO_TITLE
+		,BO_WRITER BO_WRITER_ID
+		,C.MEM_NICK BO_WRITER
+        ,BO_CONTENT
+        ,TO_CHAR(BO_DATE, 'YYYY-MM-DD HH:MI') BO_DATE
+        ,BO_HIT
+        ,BO_DEPTH
+        ,BO_PARENT
+        ,BO_DELETE
+        ,ATT_SN
+        ,ATT_SAVENAME
+        ,ATT_FILENAME
+        ,ATT_FILESIZE
+        ,ATT_MIME
+        ,ATT_FANCY
+         FROM BOARD A LEFT OUTER JOIN ATTACH B ON(A.BO_NO=B.BO_NO)
+                      INNER JOIN MEMBER C ON(A.BO_WRITER=C.MEM_ID)
+         WHERE A.BO_NO=#{boNo}
+   </select>
+   
+   <insert id="insertOfficeQnaBoard" parameterType="kr.or.anyapart.board.vo.BoardVO" > 
+      <selectKey order="BEFORE" keyProperty="boNo" resultType="int">
+         SELECT NVL(MAX(BO_NO), 0)+1
+         FROM BOARD
+      </selectKey>
+      INSERT INTO board (
+         BO_NO
+        ,BO_TYPE 
+        ,BO_TITLE
+        ,BO_WRITER
+        ,BO_CONTENT
+        ,BO_DATE
+        ,BO_PARENT
+        ,BO_DEPTH
+         )VALUES(
+         #{boNo,jdbcType=NUMERIC}
+        ,'OQNA'
+        ,#{boTitle,jdbcType=VARCHAR}
+        ,#{boWriter,jdbcType=VARCHAR}
+        ,#{boContent,jdbcType=CLOB}
+        ,SYSDATE
+        ,#{boParent,jdbcType=NUMERIC}
+        <if test="boDepth!=null">
+	    ,2
+	    </if>
+	    <if test="boDepth==null">
+	    ,1
+	    </if>
+      )
+   </insert>
+   
+   <update id="updateOfficeQnaBoard" parameterType="kr.or.anyapart.board.vo.BoardVO">
+      UPDATE BOARD
+      SET
+         BO_TITLE = #{boTitle,jdbcType=VARCHAR}
+        ,BO_CONTENT = #{boContent,jdbcType=CLOB}
+        ,BO_DATE = SYSDATE
+      WHERE BO_NO = #{boNo}      
+   </update>
+   
+   <delete id="deleteOfficeQnaBoard" parameterType="int">
+      DELETE FROM BOARD
+         WHERE BO_NO IN (
+	            SELECT BO_NO
+	              FROM BOARD
+	             START WITH BO_NO = #{bo_no}
+	           CONNECT BY PRIOR BO_NO = BO_PARENT
+         )
+   </delete>
+    
+    <update id="incrementHit" parameterType="int">
+      UPDATE BOARD
+         SET BO_HIT = BO_HIT + 1
+       WHERE BO_NO = #{boNo}
+   </update>
+   
+   <select id ="answerChk" parameterType="kr.or.anyapart.board.vo.BoardVO" resultType="kr.or.anyapart.board.vo.BoardVO">
+   		SELECT BO_NO
+   		  FROM BOARD 
+   		 WHERE BO_PARENT = #{boNo} 
+   </select>
+   
+   <select id="selectWaitingQnaCount" parameterType="kr.or.anyapart.vo.PagingVO" resultType="int">
+   	WITH BOARDTB AS(
+		 SELECT BO_NO
+		        ,BO_PARENT
+		        ,BO_DEPTH
+		 FROM BOARD
+		 WHERE BO_TYPE='OQNA'  
+		)
+		
+		SELECT COUNT(*)
+		FROM BOARD A LEFT JOIN MEMBER B ON (A.BO_WRITER=B.MEM_ID)
+		              LEFT JOIN BOARDTB C ON (A.BO_NO = C.BO_PARENT)       
+		 <include refid="searchFrag"/>
+		 AND C.BO_PARENT IS NULL
+		 AND BO_DELETE = 'N'
+		 AND A.BO_DEPTH = '1'
+   </select>
+   
+   <select id="selectWaitingQnaList" parameterType="kr.or.anyapart.vo.PagingVO" resultType="kr.or.anyapart.board.vo.BoardVO">
+	   WITH BOARDTB AS(
+		 SELECT BO_NO
+		        ,BO_PARENT
+		        ,BO_DEPTH
+		 FROM BOARD
+		 WHERE BO_TYPE='OQNA'  
+		)
+		
+		 SELECT B.*
+		  FROM ( 
+		       SELECT ROWNUM RNUM, A.*
+		         FROM(
+		              SELECT A.BO_NO
+		                     ,BO_TITLE
+		                     ,B.MEM_NICK AS "BO_WRITER"
+		                     ,TO_CHAR(BO_DATE, 'YYYY-MM-DD') BO_DATE
+		                     ,BO_HIT
+		                FROM BOARD A LEFT JOIN MEMBER B ON (A.BO_WRITER=B.MEM_ID)
+		                              LEFT JOIN BOARDTB C ON (A.BO_NO = C.BO_PARENT)       
+		               <include refid="searchFrag"/>
+		                 AND C.BO_PARENT IS NULL
+		                 AND BO_DELETE = 'N'
+		                 AND A.BO_DEPTH = '1'
+		             )A
+		   )B
+		   WHERE RNUM BETWEEN #{startRow} AND #{endRow}  
+   </select>
+</mapper>

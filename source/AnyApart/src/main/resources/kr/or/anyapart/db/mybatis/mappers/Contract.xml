@@ -1,0 +1,251 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper
+	namespace="kr.or.anyapart.servicecompany.dao.ServiceCompanyDAO">
+	
+	<sql id="searchFrag">
+		<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchVO.searchAptCode)">
+				 where INSTR(SERVICE.APT_CODE, #{searchVO.searchAptCode}) > 0
+			</if>
+	<if test="searchVO!=null">
+			<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchVO.searchWord)">
+				<choose>
+					<when test="'svcName'.equals(searchVO.searchType)">
+						AND INSTR(SVC_NAME, #{searchVO.searchWord}) > 0
+					</when>
+					<when test="'svcCode'.equals(searchVO.searchType)">
+						AND INSTR(COMMONCODE.CODE_NAME, #{searchVO.searchWord}) > 0
+					</when>
+				</choose>
+			</if>
+		</if>
+	</sql>
+	
+	
+	<select id="retrieveContractCount"
+		parameterType="kr.or.anyapart.vo.PagingVO" resultType="int">
+		SELECT COUNT(*)
+		FROM SERVICE
+		<include refid="searchFrag" />
+	</select>
+
+
+	<select id="seleteContractList"
+		parameterType="kr.or.anyapart.vo.PagingVO"
+		resultType="kr.or.anyapart.servicecompany.vo.ServiceVO">
+		SELECT B.*
+		FROM (
+		SELECT A.*, ROWNUM SVCRUM
+		FROM (
+		SELECT
+		SERVICE.SVC_ID ,
+		SERVICE.APT_CODE ,
+		COMMONCODE.CODE_NAME SVC_CODE,
+		SVC_NAME,
+		SVC_DEL,
+		TO_CHAR(SERVICECONTRACT.SVC_START, 'YYYY-MM-DD')SVC_START,
+		TO_CHAR(SERVICECONTRACT.SVC_END, 'YYYY-MM-DD')SVC_END,
+		TO_CHAR(SERVICECONTRACT.SVC_DEPOSIT,'999,999,999,999')SVC_DEPOSIT
+		FROM SERVICE
+		LEFT JOIN SERVICECONTRACT ON SERVICE.SVC_ID = SERVICECONTRACT.SVC_ID
+		LEFT JOIN COMMONCODE ON SERVICE.SVC_CODE = COMMONCODE.CODE_ID
+		
+		<include refid="searchFrag" />
+		ORDER BY SVC_DEL,SVC_ID DESC
+		) A
+		) B	
+		<![CDATA[
+			WHERE SVCRUM >= #{startRow} AND SVCRUM <= #{endRow}
+		]]>
+	</select>
+
+	<select id="serviceCodeList"
+		resultType="kr.or.anyapart.vo.CodeVO">
+		SELECT
+		CODE_ID,
+		CODE,
+		CODE_NAME
+		FROM
+		COMMONCODE
+		WHERE CODE = 'SVC_CODE'
+	</select>
+
+	<select id="apart"
+		parameterType="kr.or.anyapart.servicecompany.vo.ServiceVO"
+		resultType="kr.or.anyapart.apart.vo.ApartVO">
+		SELECT
+		APT_CODE,
+		APT_NAME,
+		APT_ZIP,
+		APT_ADD1,
+		APT_ADD2,
+		APT_CNT,
+		APT_IMG,
+		APT_DELETE,
+		APT_HEAT,
+		APT_TEL,
+		APT_HEAD,
+		TO_CHAR(APT_START, 'YYYY-MM-DD')APT_START,
+		APT_END,
+		APT_AREA
+		FROM
+		APART
+		WHERE APT_CODE =#{aptCode}
+	</select>
+
+
+	<select id="seleteServiceView"
+		parameterType="kr.or.anyapart.servicecompany.vo.ServiceVO"
+		resultType="kr.or.anyapart.servicecompany.vo.ServiceVO">
+		SELECT
+		SERVICE.SVC_ID ,
+		SERVICE.APT_CODE,
+		COMMONCODE.CODE_NAME SVC_CODE,
+		SVC_CODE AS RE_SVCCODE,
+		SVC_NAME,
+		SVC_ZIP,
+		SVC_ADD1,
+		SVC_ADD2,
+		SVC_HEAD,
+		SVC_TEL,
+		SVC_HEAD_TEL,
+		APART.APT_NAME APT_NAME,
+		BANK.BANK_NAME SVC_BANK,
+		SVC_BANK AS RE_SVCBANK,
+		SVC_ACCT,
+		TO_CHAR(SERVICECONTRACT.SVC_START, 'YYYY-MM-DD')SVC_START,
+		TO_CHAR(SERVICECONTRACT.SVC_END, 'YYYY-MM-DD')SVC_END,
+		SERVICECONTRACT.SVC_DEPOSIT,
+		SVC_DEL
+		FROM SERVICE
+		LEFT JOIN SERVICECONTRACT ON SERVICE.SVC_ID = SERVICECONTRACT.SVC_ID
+		LEFT JOIN BANK ON SERVICE.SVC_BANK = BANK.BANK_CODE
+		LEFT JOIN APART ON SERVICE.APT_CODE= APART.APT_CODE
+		LEFT JOIN COMMONCODE ON SERVICE.SVC_CODE = COMMONCODE.CODE_ID
+		WHERE SERVICE.SVC_ID =#{svcId}
+		ORDER BY SVC_ID DESC
+	</select>
+
+
+
+	<select id="seleteServiceFile"
+		parameterType="kr.or.anyapart.servicecompany.vo.ServiceVO"
+		resultType="kr.or.anyapart.servicecompany.vo.ServiceAttachVO">
+		SELECT A.*, ROWNUM SVCFILERUM
+		FROM (
+		SELECT
+		SVC_FILE_NO,
+		SVC_ID,
+		SVC_FILENAME,
+		SVC_FILE,
+		SVC_DATE,
+		SVC_MIME,
+		SVC_FILESIZE,
+		SVC_FANCY
+		FROM
+		SERVICEFILE
+		WHERE SVC_ID =#{svcId}
+
+		) A
+	</select>
+
+
+	<select id="retrieveFileCount"
+		parameterType="kr.or.anyapart.vo.PagingVO" resultType="int">
+		SELECT COUNT(*)
+		FROM SERVICEFILE
+		WHERE SVC_ID =#{svcId}
+	</select>
+
+
+	<insert id="insertContract"
+		parameterType="kr.or.anyapart.servicecompany.vo.ServiceVO">
+		<selectKey order="BEFORE" keyProperty="svcId"
+			resultType="String">
+			SELECT #{aptCode,
+			jdbcType=VARCHAR}||'S'||LPAD(COUNT(*)+1,'3','0')
+			FROM SERVICE
+		</selectKey>
+		INSERT ALL
+		INTO SERVICE (
+		SVC_ID,
+		APT_CODE,
+		SVC_CODE,
+		SVC_NAME,
+		SVC_ZIP,
+		SVC_ADD1,
+		SVC_ADD2,
+		SVC_TEL,
+		SVC_HEAD,
+		SVC_HEAD_TEL,
+		SVC_BANK,
+		SVC_ACCT
+		)
+		VALUES(
+		#{svcId},
+		#{aptCode,jdbcType=VARCHAR},
+		#{svcCode,jdbcType=VARCHAR},
+		#{svcName,jdbcType=VARCHAR},
+		#{svcZip,jdbcType=VARCHAR},
+		#{svcAdd1,jdbcType=VARCHAR},
+		#{svcAdd2,jdbcType=VARCHAR},
+		#{svcTel,jdbcType=VARCHAR},
+		#{svcHead,jdbcType=VARCHAR},
+		#{svcHeadTel,jdbcType=VARCHAR},
+		#{svcBank,jdbcType=VARCHAR},
+		#{svcAcct,jdbcType=VARCHAR}
+		)
+		INTO SERVICECONTRACT(
+		SVC_ID,
+		SVC_START,
+		SVC_END,
+		SVC_DEPOSIT,
+		APT_CODE
+		)
+		VALUES(
+		#{svcId},
+		#{svcStart,jdbcType=DATE},
+		#{svcEnd,jdbcType=DATE},
+		#{svcDeposit,jdbcType=NUMERIC},
+		#{aptCode,jdbcType=VARCHAR}
+		)
+		SELECT * FROM DUAL
+
+
+	</insert>
+
+
+	<update id="updateContract"
+		parameterType="kr.or.anyapart.servicecompany.vo.ServiceVO">
+		UPDATE SERVICE
+		SET
+		SVC_CODE = #{svcCode,jdbcType=VARCHAR},
+		SVC_NAME =#{svcName,jdbcType=VARCHAR},
+		SVC_ZIP =#{svcZip,jdbcType=VARCHAR},
+		SVC_ADD1 =#{svcAdd1,jdbcType=VARCHAR},
+		SVC_ADD2 =#{svcAdd2,jdbcType=VARCHAR},
+		SVC_TEL =#{svcTel,jdbcType=VARCHAR},
+		SVC_HEAD =#{svcHead,jdbcType=VARCHAR},
+		SVC_HEAD_TEL =#{svcHeadTel,jdbcType=VARCHAR},
+		SVC_BANK =#{svcBank,jdbcType=VARCHAR},
+		SVC_ACCT =#{svcAcct,jdbcType=VARCHAR}
+		WHERE SVC_ID = #{svcId}
+	</update>
+	
+	
+	<update id="serviceDelete" parameterType="kr.or.anyapart.servicecompany.vo.ServiceVO">
+		UPDATE SERVICE
+		SET
+		SVC_DEL=#{svcDel}
+		WHERE SVC_ID = #{svcId}
+	</update>
+	
+	<update id="updateServicecontract" parameterType="kr.or.anyapart.servicecompany.vo.ServiceVO">
+		UPDATE SERVICECONTRACT
+	    SET
+	    SVC_START =#{svcStart},
+	    SVC_END =#{svcEnd},
+	    SVC_DEPOSIT=#{svcDeposit}
+	    WHERE SVC_ID = #{svcId}
+	</update>
+</mapper>

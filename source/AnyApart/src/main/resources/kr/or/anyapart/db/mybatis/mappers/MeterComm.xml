@@ -1,0 +1,224 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.anyapart.meter.dao.IMeterCommDAO">
+<sql id="searchFrag">
+	<where>
+		<if test="searchDetail!=null">
+			<choose>
+				<when test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.startYear) and @org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.startMonth)
+							and @org.apache.commons.lang3.StringUtils@isBlank(searchDetail.endYear) and @org.apache.commons.lang3.StringUtils@isBlank(searchDetail.endMonth)">
+					COMM_YEAR >= #{searchDetail.startYear} and COMM_MONTH >= #{searchDetail.startMonth}
+				</when>
+				<when test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.startYear) and @org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.startMonth)
+							and @org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.endYear) and @org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.endMonth)">
+					AND TO_CHAR(COMM_YEAR)||LPAD(TO_CHAR(COMM_MONTH),2,'0')
+			        BETWEEN TO_CHAR(#{searchDetail.startYear})||LPAD(TO_CHAR(#{searchDetail.startMonth}),2,'0')
+			            AND TO_CHAR(#{searchDetail.endYear})||LPAD(TO_CHAR(#{searchDetail.endMonth}),2,'0')
+				</when>
+			</choose>
+		</if>
+	</where>
+</sql>
+<sql id="searchOrderBy">
+	<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.meter) or @org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.sort)">
+		ORDER BY
+		<choose>
+			<when test="'COMM_HEAT'.equals(searchDetail.meter)">
+				 COMM_HEAT
+			</when>
+			<when test="'COMM_HOTWATER'.equals(searchDetail.meter)">
+				 COMM_HOTWATER
+			</when>
+			<when test="'COMM_WATER'.equals(searchDetail.meter)">
+				 COMM_WATER
+			</when>
+			<when test="'COMM_ELEC'.equals(searchDetail.meter)">
+				 COMM_ELEC
+			</when>
+		</choose>
+	</if>
+	<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.sort)">
+		<choose>
+			<when test="'desc'.equals(searchDetail.sort)">
+				DESC
+			</when>
+			<when test="'asc'.equals(searchDetail.sort)">
+				ASC
+			</when>
+		</choose>
+	</if>
+</sql>
+
+<select id="selectCommMeterCount" parameterType="kr.or.anyapart.vo.PagingVO" resultType="int">
+	SELECT COUNT(*)
+	FROM COMMONMETER
+	WHERE APT_CODE=#{searchVO.searchAptCode}
+	<if test="searchDetail!=null">
+		<choose>
+			<when test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.startYear) and @org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.startMonth)
+						and @org.apache.commons.lang3.StringUtils@isBlank(searchDetail.endYear) and @org.apache.commons.lang3.StringUtils@isBlank(searchDetail.endMonth)">
+				AND COMM_YEAR >= #{searchDetail.startYear} and COMM_MONTH >= #{searchDetail.startMonth}
+			</when>
+			<when test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.startYear) and @org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.startMonth)
+						and @org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.endYear) and @org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.endMonth)">
+				AND TO_CHAR(COMM_YEAR)||LPAD(TO_CHAR(COMM_MONTH),2,'0')
+		        BETWEEN TO_CHAR(#{searchDetail.startYear})||LPAD(TO_CHAR(#{searchDetail.startMonth}),2,'0')
+		            AND TO_CHAR(#{searchDetail.endYear})||LPAD(TO_CHAR(#{searchDetail.endMonth}),2,'0')
+			</when>
+		</choose>
+	</if>
+</select>
+
+<select id="selectCommMeterList" parameterType="kr.or.anyapart.vo.PagingVO" resultType="kr.or.anyapart.meter.vo.MeterCommVO">
+	SELECT B.*
+	FROM
+	    (SELECT ROWNUM RNUM, A.*
+	     FROM (
+	        SELECT
+	            COMM_NO,
+	            COMM_YEAR,
+	            COMM_MONTH,
+	            COMM_HEAT,
+	            COMM_HOTWATER,
+	            COMM_WATER,
+	            COMM_ELEC,
+	            APT_CODE,
+	            COMM_FLAG
+	        FROM COMMONMETER
+	        WHERE APT_CODE=#{searchVO.searchAptCode}
+	        <if test="searchDetail!=null">
+				<choose>
+					<when test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.startYear) and @org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.startMonth)
+								and @org.apache.commons.lang3.StringUtils@isBlank(searchDetail.endYear) and @org.apache.commons.lang3.StringUtils@isBlank(searchDetail.endMonth)">
+						AND COMM_YEAR >= #{searchDetail.startYear} and COMM_MONTH >= #{searchDetail.startMonth}
+					</when>
+					<when test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.startYear) and @org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.startMonth)
+								and @org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.endYear) and @org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.endMonth)">
+						AND TO_CHAR(COMM_YEAR)||LPAD(TO_CHAR(COMM_MONTH),2,'0')
+				        BETWEEN TO_CHAR(#{searchDetail.startYear})||LPAD(TO_CHAR(#{searchDetail.startMonth}),2,'0')
+				            AND TO_CHAR(#{searchDetail.endYear})||LPAD(TO_CHAR(#{searchDetail.endMonth}),2,'0')
+					</when>
+				</choose>
+			</if>
+	        ORDER BY COMM_YEAR DESC, COMM_MONTH DESC
+	        ) A
+	    )B
+	WHERE RNUM BETWEEN #{startRow} AND #{endRow}
+	<include refid="searchOrderBy" />
+</select>
+
+<select id="selectCommMeter" parameterType="kr.or.anyapart.meter.vo.MeterCommVO" resultType="kr.or.anyapart.meter.vo.MeterCommVO">
+	SELECT
+	    COMM_NO,
+	    COMM_YEAR,
+	    COMM_MONTH,
+	    COMM_HEAT,
+	    COMM_HOTWATER,
+	    COMM_WATER,
+	    COMM_ELEC,
+	    APT_CODE
+	FROM COMMONMETER
+	WHERE COMM_NO = #{commNo}
+</select>
+
+<select id="selectApart" parameterType="kr.or.anyapart.vo.MemberVO" resultType="kr.or.anyapart.apart.vo.ApartVO">
+	SELECT
+	    APT_CODE,
+	    APT_NAME,
+	    APT_ZIP,
+	    APT_ADD1,
+	    APT_ADD2,
+	    APT_CNT,
+	    APT_IMG,
+	    APT_DELETE,
+	    APT_HEAT,
+	    APT_TEL,
+	    APT_HEAD,
+	    APT_START,
+	    APT_END,
+	    APT_AREA,
+	    CODE_NAME
+	FROM
+	    APART LEFT OUTER JOIN COMMONCODE ON(APT_HEAT=CODE_ID)
+	WHERE APT_CODE=#{aptCode}
+</select>
+
+<select id="selectExcelCommMeter" parameterType="kr.or.anyapart.meter.vo.MeterCommVO" resultType="kr.or.anyapart.meter.vo.MeterCommVO">
+	SELECT
+	    COMM_NO,
+	    COMM_YEAR,
+	    COMM_MONTH,
+	    COMM_HEAT,
+	    COMM_HOTWATER,
+	    COMM_WATER,
+	    COMM_ELEC,
+	    APT_CODE,
+	    COMM_FLAG
+	FROM COMMONMETER
+	WHERE COMM_YEAR = #{commYear}
+	AND COMM_MONTH = #{commMonth}
+	AND APT_CODE=#{aptCode}
+</select>
+
+<select id="selectMeterCommThisYear" parameterType="kr.or.anyapart.meter.vo.MeterCommVO" resultType="kr.or.anyapart.meter.vo.MeterCommVO">
+	SELECT
+	    COMM_MONTH,
+	    SUM(COMM_HEAT) HEAT_SUM,
+	    SUM(COMM_HOTWATER) HOTWATER_SUM,
+	    SUM(COMM_WATER) WATER_SUM,
+	    SUM(COMM_ELEC) ELEC_SUM
+	FROM COMMONMETER
+	WHERE COMM_YEAR=#{commYear}
+	AND APT_CODE=#{aptCode}
+	GROUP BY COMM_MONTH
+	ORDER BY COMM_MONTH
+</select>
+
+<select id="selectCommMeterTotalCnt" parameterType="kr.or.anyapart.vo.PagingVO" resultType="int">
+	SELECT COUNT(*)
+	FROM COMMONMETER
+	WHERE APT_CODE=#{searchVO.searchAptCode}
+</select>
+
+<insert id="insertCommMeter" parameterType="kr.or.anyapart.meter.vo.MeterCommVO">
+	<selectKey order="BEFORE" keyProperty="commNo" resultType="int">
+		SELECT NVL(MAX(COMM_NO)+1, 0)
+		FROM COMMONMETER
+	</selectKey>
+	INSERT INTO COMMONMETER (
+	    COMM_NO,
+	    COMM_YEAR,
+	    COMM_MONTH,
+	    COMM_HEAT,
+	    COMM_HOTWATER,
+	    COMM_WATER,
+	    COMM_ELEC,
+	    APT_CODE
+	) VALUES (
+	    #{commNo},
+	    #{commYear},
+	    #{commMonth},
+	    #{commHeat},
+	    #{commHotwater},
+	    #{commWater},
+	    #{commElec},
+	    #{aptCode}
+	)
+</insert>
+
+<update id="updateCommMeter" parameterType="kr.or.anyapart.meter.vo.MeterCommVO">
+	UPDATE COMMONMETER
+	SET COMM_YEAR = #{commYear},
+	    COMM_MONTH = #{commMonth},
+	    COMM_HEAT = #{commHeat},
+	    COMM_HOTWATER = #{commHotwater},
+	    COMM_WATER = #{commWater},
+	    COMM_ELEC = #{commElec}
+	WHERE COMM_NO = #{commNo}    
+</update>
+
+<delete id="deleteCommMeter" parameterType="kr.or.anyapart.meter.vo.MeterCommVO">
+	DELETE COMMONMETER
+	WHERE COMM_NO = #{commNo}
+</delete>
+</mapper>

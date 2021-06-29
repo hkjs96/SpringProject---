@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.anyapart.approval.draft.dao.DraftDAO">
+
+	<resultMap type="kr.or.anyapart.employee.vo.EmployeeVO" id="empPositionMap" autoMapping="true">
+		<association property="member" javaType="kr.or.anyapart.vo.MemberVO" autoMapping="true"></association>
+		<association property="position" javaType="kr.or.anyapart.employee.vo.PositionVO" autoMapping="true"></association>
+	</resultMap>
+	
+	<select id="selectDraftBasicInfo" parameterType="kr.or.anyapart.employee.vo.EmployeeVO" resultType="kr.or.anyapart.approval.vo.DraftVO">
+		SELECT NVL(MAX(DRAFT_ID), 0)+1 DRAFT_ID 
+		  FROM DRAFT
+	</select>
+	
+	<select id="selectTaskCodeList" resultType="kr.or.anyapart.vo.CodeVO">
+		SELECT CODE_ID, CODE_NAME
+			  FROM COMMONCODE 
+			  WHERE CODE = 'TASK_CODE'
+	</select>
+	
+	<select id="selectAppCodeList" resultType="kr.or.anyapart.vo.CodeVO">
+		SELECT CODE_ID, CODE_NAME
+		  FROM COMMONCODE 
+		 WHERE CODE = 'APP_CODE'
+	</select>
+	
+	<select id="selectAcctList" parameterType="String" resultType="kr.or.anyapart.account.vo.AccountVO">
+			SELECT ACCT_ID
+			      ,B.BANK_NAME||' '||ACCT_NO || ' | ' ||ACCT_COMENT "ACCT_COMENT" 
+			    FROM ACCOUNT A LEFT OUTER JOIN BANK B ON(A.BANK_CODE=B.BANK_CODE)
+			WHERE SUBSTR(ACCT_ID, 1, 5) = #{aptCode}
+	</select>
+	
+	<select id="selectAppEmpList" parameterType="kr.or.anyapart.employee.vo.EmployeeVO" resultMap="empPositionMap">
+		SELECT A.MEM_ID
+              ,EMP_NAME
+              ,POSITION_NAME
+              ,B.POSITION_CODE
+	      FROM EMPLOYEE A LEFT OUTER JOIN POSITION B ON(A.POSITION_CODE=B.POSITION_CODE)
+	                      LEFT OUTER JOIN MEMBER C ON(A.MEM_ID=C.MEM_ID)
+	     WHERE A.APT_CODE=#{aptCode}
+	           AND (B.POSITION_CODE='E001' OR B.POSITION_CODE='E002')
+	           AND NOT A.MEM_ID = #{memId}
+	           AND A.EMP_END IS NULL
+	     ORDER BY B.POSITION_CODE ASC
+	</select>
+	
+	<insert id="insertAppovalLine" parameterType="kr.or.anyapart.approval.vo.DraftVO" >
+	    <selectKey order="BEFORE" keyProperty="applineId" resultType="int">
+			SELECT NVL(MAX(APPLINE_ID), 0)+1
+			FROM APPROVALLINE
+		</selectKey>
+		       INSERT INTO APPROVALLINE (
+		                   APPLINE_ID,
+		                   MEM_ID
+		          ) VALUES (
+		                   #{applineId, jdbcType=NUMERIC}
+		                 , #{memId, jdbcType=VARCHAR}
+		           )
+	</insert>
+	
+	<select id="selectLastAppLineId" resultType="int">
+		SELECT NVL(MAX(APPLINE_ID), 0)
+   		  FROM APPROVALLINE
+	</select>
+	
+	<insert id="insertDraft" parameterType="kr.or.anyapart.approval.vo.DraftVO">
+	 <selectKey order="BEFORE" keyProperty="draftId" resultType="int">
+			SELECT NVL(MAX(DRAFT_ID), 0)+1
+			FROM DRAFT
+		</selectKey>
+		INSERT INTO DRAFT (
+			DRAFT_ID
+            ,TASK_CODE
+            ,APPLINE_ID
+            ,DRAFT_DATE
+            ,DRAFT_TITLE
+            ,DRAFT_DELETE
+            ,MEM_ID
+            ,DRAFT_CONTENT
+            ,DRAFT_ACCT
+	    )VALUES(
+             #{draftId, jdbcType=NUMERIC}
+            , #{taskCode, jdbcType=VARCHAR}
+            , #{applineId, jdbcType=NUMERIC}
+            , SYSDATE
+            , #{draftTitle, jdbcType=VARCHAR}
+            , 'N'
+            , #{memId, jdbcType=VARCHAR}
+            , #{draftContent, jdbcType=CLOB}
+            , #{draftAcct, jdbcType=NUMERIC}
+		)
+	</insert>
+	
+	<insert id="insertLineDetail" parameterType="kr.or.anyapart.approval.vo.ApprovalLineVO">
+		<selectKey order="BEFORE" keyProperty="startAppNo" resultType="int">
+		    SELECT NVL(MAX(APPLINEDE_ID), 0)+1
+		    FROM LINEDETAIL
+		</selectKey>
+		
+		INSERT ALL
+		<foreach collection="lineDetailList" item="lineDetail" index ="idx">
+			INTO linedetail (
+			     applinede_id,
+			     appline_id,
+			     app_code,
+			     app_order,
+			     mem_id, 
+			     app_yn
+			) VALUES (
+			         #{startAppNo,jdbcType=NUMERIC}+#{idx}
+			        , #{applineId, jdbcType=NUMERIC}
+			        , #{lineDetail.appCode, jdbcType=VARCHAR}
+			        , #{idx}+1
+			        , #{lineDetail.lineMemId, jdbcType=VARCHAR}
+			         , 'N'
+			)
+			</foreach>
+			SELECT * FROM DUAL
+	</insert>
+	
+	<select id="selectMinLineDeId" parameterType="kr.or.anyapart.approval.vo.DraftVO" resultType="kr.or.anyapart.approval.vo.LineDetailVO">
+		 SELECT A.*, ROWNUM RNUM
+		   FROM (SELECT MIN(APPLINEDE_ID) APPLINEDE_ID
+			             ,MEM_ID
+			        FROM LINEDETAIL
+			       WHERE APPLINE_ID=#{applineId}
+			       GROUP BY MEM_ID
+			       ORDER BY APPLINEDE_ID) A
+		  WHERE ROWNUM=1
+	</select>
+	
+	<insert id="insertApproval" parameterType="kr.or.anyapart.approval.vo.ApprovalVO">
+		<selectKey order="BEFORE" keyProperty="appId" resultType="int">
+		    SELECT NVL(MAX(APP_ID), 0)+1
+		    FROM APPROVAL
+		</selectKey>
+		INSERT INTO APPROVAL (
+				    APP_ID,
+				    DRAFT_ID,
+				    APPLINEDE_ID,
+				    APP_STATUS,
+				    APP_DATE,
+				    APP_NOWEMP
+				) VALUES (
+				    #{appId, jdbcType=NUMERIC}
+				    , #{draftId, jdbcType=NUMERIC}
+				    , #{applinedeId, jdbcType=NUMERIC}
+				    , 'WAITING'
+				    , null
+					, #{appNowemp, jdbcType=VARCHAR}
+				)
+	</insert>
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+</mapper>

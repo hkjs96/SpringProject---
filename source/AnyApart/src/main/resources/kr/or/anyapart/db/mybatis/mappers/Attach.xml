@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.anyapart.commonsweb.dao.IAttachDAO">
+	<insert id="insertAttaches" parameterType="kr.or.anyapart.board.vo.BoardVO">
+		<selectKey order="BEFORE" keyProperty="startAttNo" resultType="int">
+			SELECT NVL(MAX(ATT_SN), 0)+1
+			FROM ATTACH
+			WHERE BO_NO =#{boNo}
+		</selectKey>
+		INSERT ALL
+		<foreach collection="attachList" item="attach" index ="idx">
+			INTO ATTACH (
+			  ATT_SN, ATT_SAVENAME,
+			   ATT_FILENAME, ATT_MIME, 
+			   BO_NO, ATT_FILESIZE,
+			    ATT_FANCY
+			) VALUES (
+				#{startAttNo,jdbcType=NUMERIC}+#{idx},    #{attach.attSavename,jdbcType=VARCHAR},
+			    #{attach.attFilename,jdbcType=VARCHAR},    #{attach.attMime,jdbcType=VARCHAR},
+			    #{boNo,jdbcType=NUMERIC},    #{attach.attFilesize,jdbcType=NUMERIC},
+			    #{attach.attFancy,jdbcType=VARCHAR}
+			)
+		</foreach>
+		SELECT * FROM DUAL
+	</insert>
+	
+<select id="selectAttach" parameterType="kr.or.anyapart.vo.AttachVO" resultType="kr.or.anyapart.vo.AttachVO">
+	SELECT 
+		ATT_SN,    ATT_SAVENAME,
+	    ATT_FILENAME,    ATT_MIME,
+	    BO_NO,    ATT_FILESIZE,
+	    ATT_FANCY
+	FROM ATTACH
+	WHERE ATT_SN = #{attSn} AND BO_NO = #{boNo}
+</select>
+
+	<delete id="deleteAttatches" parameterType="kr.or.anyapart.board.vo.BoardVO">
+		DELETE FROM ATTACH
+		<where>
+			<if test="delAttNos!=null and delAttNos.length gt 0">
+				ATT_SN IN 
+				<foreach collection="delAttNos" item="attSn" open="(" close=")" separator=",">
+					#{attSn}
+				</foreach>	
+			</if>
+			<if test="delAttNos==null or delAttNos.length eq 0">
+				BO_NO = #{boNo}
+			</if>
+		</where>
+	</delete>
+</mapper>

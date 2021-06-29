@@ -1,0 +1,92 @@
+/**
+ * @author 박정민
+ * @since 2021. 1. 29.
+ * @version 1.0
+ * <pre>
+ * [[개정이력(Modification Infomation)]]
+ * 수정일             수정자           수정내용
+ * --------  --------   -----------------------
+ * 2021. 1. 29.       작성자명         최초작성
+ * Copyright (c) 2021 by DDIT All right reserved
+ * </pre>
+ */
+@charset "UTF-8";
+/* 등록 폼 */
+#inputDiv{
+	padding:8px;
+	width: 850px;
+	height: 180px;
+	margin-top: 30px;
+	margin-left: 10%;
+	padding-top: 0px;
+	border: 2px solid 
+#054BBE;
+	border-radius: 10px; 
+}
+#inputDiv th, #inputDiv td{
+	padding: 5px;
+}
+#inputDiv th{
+	color: #061C4E;
+}
+#inputDiv tr:first-child td{
+	padding: 0px;
+}
+#insertBtn{
+	margin-top: 10px;
+	margin-left: 150px;
+}
+#insertH3 strong{
+	margin-left: 50px;
+	color: black;
+	font-weight: 500;
+}
+#inputDiv textarea{
+	border: 1px solid #357FF9;
+	border-radius: 10px; 
+}
+/* 게시글 리스트 */
+#listDiv{
+	margin-top: 80px;
+ 	margin-left: 4%; 
+}
+#listDiv table{
+	width: 80%;
+	margin-left: 4%;
+}
+#listDiv tr:nth-child(3n) td{
+	border-top: none;
+	padding-bottom: 20px;
+}
+#listDiv tr:nth-child(even) td{
+	text-align: left;
+}
+#listDiv tr:first-child {
+	padding-bottom: 0;
+}
+#listDiv td:first-child {
+	padding-left: 20px;
+}
+.listInfoTH{
+	font-size: 0.85em;
+}
+.tdSpan{
+	padding-left: 20px;
+}
+.writerSpan{
+	font-weight: bolder;
+}
+.deleteBtn{
+	margin-left: 800px;
+	margin-bottom: 0px;
+}
+#searchDiv{
+	padding-top: 100px;
+	padding-left: 300px;
+}
+.badge-primary{
+	background-color: #F6534E;	
+}
+.badge-default{
+	background-color: #3ECFDE;
+}

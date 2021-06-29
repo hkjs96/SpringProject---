@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--  [[개정이력(Modification Information)]]       -->
+<!--  수정일       		 수정자 	    수정내용               -->
+<!--  ==========   ======    ==============        -->
+<!--  2021. 1. 29.   박지수    	  최초등록              -->
+<!--  2021. 2. 10.   이경륜    anonymous false로 변경, login access값 변경,http pattern 정적자원 삭제        -->
+<!--  Copyright (c) 2021 by DDIT All right reserved -->
+<beans:beans
+	xmlns="http://www.springframework.org/schema/security"
+	xmlns:beans="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:c="http://www.springframework.org/schema/c"
+	xmlns:p="http://www.springframework.org/schema/p"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/security http://www.springframework.org/schema/security/spring-security-4.2.xsd">
+
+
+	<beans:bean id="passwordEncoder"
+		class="org.springframework.security.crypto.factory.PasswordEncoderFactories"
+		factory-method="createDelegatingPasswordEncoder" />
+
+	<beans:bean id="authenticationProvider"
+		class="org.springframework.security.authentication.dao.DaoAuthenticationProvider"
+		p:userDetailsService-ref="customUserService"
+		p:passwordEncoder-ref="passwordEncoder"
+		p:hideUserNotFoundExceptions="false" />
+
+	<authentication-manager
+		id="authenticationManager">
+		<authentication-provider 
+			ref="authenticationProvider" />
+	</authentication-manager>
+
+	<beans:bean id="customAuthenticationSuccessHandler"
+		class="kr.or.anyapart.commons.security.CustomAuthenticationSuccessHandler"
+		p:defaultTargetUrl="/" p:alwaysUseDefaultTargetUrl="true" />
+
+	<beans:bean id="customLogoutSuccessHandler" class="kr.or.anyapart.commons.security.CustomLogoutSuccessHandler"/>
+
+	<beans:bean id="i18nSupportFilter"
+		class="kr.or.anyapart.commons.filter.I18nSupportFilter" />
+
+<!-- 	<http pattern="/**/*.css" security="none"/> -->
+<!-- 	<http pattern="/**/*.js" security="none"/> -->
+	<!-- 이부분은 아래 http 에서 인터셉터 하지 않는 부분이다. 전체 url을 인터셉트하지 않고, /vendor/** 이런식으로 잡았기 때문에 접근이 가능하여 
+		다른 css,js에 대한 자원 접근은 시큐리티를 타지 않음  -->
+	
+
+	<http auto-config="true"
+		authentication-manager-ref="authenticationManager"
+		use-expressions="true">
+		
+		<form-login login-page="/login"
+			username-parameter="memId" password-parameter="memPass"
+			login-processing-url="/login/loginProcess.do"
+			authentication-success-handler-ref="customAuthenticationSuccessHandler"
+			authentication-failure-url="/login" />
+
+<!-- 		<anonymous enabled="true" username="anonymous" /> -->
+<!-- 		<anonymous enabled="false"/> -->
+
+<!-- 		<logout logout-url="/login/logout.do" invalidate-session="true" -->
+<!-- 			logout-success-url="/" /> -->
+<!-- 		<logout logout-url="/login/logout.do" delete-cookies="JSESSIONID, rememberMeCookie" invalidate-session="true" success-handler-ref="customLogoutSuccessHandler"/> -->
+		<logout logout-url="/login/logout.do" delete-cookies="JSESSIONID, rememberMeCookie" invalidate-session="true" 
+			logout-success-url="/" />
+
+		<csrf disabled="true" />
+
+		<remember-me remember-me-parameter="rememberMe"
+			remember-me-cookie="rememberMeCookie" data-source-ref="dataSource"
+			user-service-ref="customUserService" />
+
+<!-- 		<custom-filter ref="i18nSupportFilter" before="FIRST" /> -->
+		
+		
+		<!-- 로그인을 했을 경우에만 로그인 url을 탈 수 있게 설정해줌 -->
+<!-- 		<intercept-url pattern="/login/**" access="isAnnomthenticated()" /> -->
+		<intercept-url pattern="/login/**" access="permitAll" />
+<!-- 		<intercept-url pattern="/login/**" access="isAnonymous()" /> -->
+		
+		<intercept-url
+			pattern="/office/setting/**"
+			access="hasRole('ROLE_HEAD')"
+		/>
+		
+		<!-- 어떤 회원인지에 따라서 접속할 수 있는 URI을 제한함. -->
+		<!-- 벤더 사이트는 벤더사이트 관리자만 접근이 가능하다. -->
+		<intercept-url
+			pattern="/vendor/**"
+			access="hasRole('ROLE_ADMIN')"/>
+		<!-- 아파트 관리사무소 사이트는 관리사무소 관계자들만 접근이 가능하다. -->
+		<intercept-url
+			pattern="/office/**"
+			
+			access="hasAnyRole('ROLE_HEAD', 'ROLE_MID', 'ROLE_EMP')"/>
+		<!-- 입주민 사이트는 로그인 한 상태사람들만 접근이 가능하며, 관리사무소 사람들은 부분적으로 접근한 부분이 존재하며
+			입주민 회원은 모든 권한을 가진다.
+				-따라서 입주민 사이트관련해서는 각 Controller별 접근을 어노테이션으로 직접 부여해야한다.
+			 -->
+<!-- 		<intercept-url -->
+<!-- 			pattern="/resident/**" -->
+<!-- 			access="hasAnyRole('ROLE_HEAD', 'ROLE_MID', 'ROLE_EMP', 'ROLE_RES')"/> -->
+		<intercept-url
+			pattern="/resident/**"
+			access="hasRole('ROLE_RES')"/>
+		
+		<intercept-url pattern="/**" access="permitAll"  />
+		
+			
+			<!-- 로그인한 뒤 로그인 사이트로 가려고 하는 경우에는 원래 페이지로 돌아가게하는 로직도 필요하다?
+				또한 로그인전에 접속하려던 페이지로 이어지게하는 것도 필요? -->
+		<access-denied-handler error-page="/AccessDenied.do" />
+	
+	</http>
+
+	<global-method-security
+		pre-post-annotations="enabled" />
+
+</beans:beans>

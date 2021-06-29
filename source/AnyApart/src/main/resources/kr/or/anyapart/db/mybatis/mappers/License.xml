@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.anyapart.employee.dao.LicenseDAO">
+	<select id="selectMaxLicenseNo" resultType="int">
+		SELECT NVL(MAX(LIC_NO), 0)+1
+			FROM LICENSE
+	</select>
+	<insert id="insertLicenses" parameterType="kr.or.anyapart.employee.vo.EmployeeVO">
+		INSERT ALL
+		<foreach collection="licenseList" item="license">
+			INTO LICENSE(LIC_NO, MEM_ID, LIC_CODE, LIC_DATE, LIC_IMG)
+			VALUES
+			(
+			  #{license.licNo}
+			, #{license.memId}
+			, #{license.licCode}
+			, #{license.licDate}
+			, #{license.licImg}
+			)
+		</foreach>
+		SELECT * FROM DUAL
+	</insert>
+	<delete id="deleteLicenses" parameterType="kr.or.anyapart.employee.vo.EmployeeVO">
+		DELETE FROM LICENSE
+		WHERE MEM_ID = #{memId}
+		<if test="deleteLicCodes!=null and deleteLicCodes.length gt 0">
+			AND LIC_CODE IN 
+			<foreach collection="deleteLicCodes" item="delCode"
+				open="(" close=")" separator=","
+			>
+				#{delCode}
+			</foreach>
+		</if>
+	</delete>
+	<select id="selectLicense" parameterType="kr.or.anyapart.employee.vo.LicenseVO" resultType="kr.or.anyapart.employee.vo.LicenseVO">
+		SELECT LIC_NO, MEM_ID, LIC_CODE, LIC_DATE, LIC_IMG
+		FROM LICENSE
+		WHERE MEM_ID = #{memId} AND LIC_CODE = #{licCode}
+	</select>
+	
+	<select id="selectEmpLicenseList" parameterType="kr.or.anyapart.employee.vo.EmployeeVO" resultType="kr.or.anyapart.employee.vo.LicenseVO">
+		SELECT LIC_NO, MEM_ID, LIC_CODE, LIC_DATE, LIC_IMG
+		FROM LICENSE
+		WHERE MEM_ID = #{memId}
+	</select>
+	
+	<delete id="deleteAllLicense" parameterType="kr.or.anyapart.employee.vo.EmployeeVO">
+		DELETE FROM LICENSE
+		WHERE MEM_ID=#{memId}
+	</delete>
+	
+	<select id="selectLicenseImage" parameterType="kr.or.anyapart.employee.vo.LicenseVO" resultType="kr.or.anyapart.employee.vo.LicenseVO">
+		SELECT LIC_IMG
+	   	  FROM LICENSE
+		 WHERE MEM_ID = #{memId}
+		   AND LIC_CODE = #{licCode}
+	</select>
+</mapper>

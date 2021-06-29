@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:p="http://www.springframework.org/schema/p"
+	xmlns:c="http://www.springframework.org/schema/c"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-4.0.xsd">
+
+	<bean name="egovIdGnrService" class="egovframework.rte.fdl.idgnr.impl.EgovTableIdGnrServiceImpl" destroy-method="destroy"
+		p:dataSource-ref="dataSource"
+		p:strategy-ref="mixPrefixSample"
+		p:blockSize="10"
+		p:table="IDS"
+		p:tableName="SAMPLE"
+	/>
+	<bean name="mixPrefixSample" class="egovframework.rte.fdl.idgnr.impl.strategy.EgovIdGnrStrategyImpl"
+		p:prefix="SAMPLE-"
+		p:cipers="5"
+		p:fillChar="0"
+	/>
+	
+	
+	<bean id="egovSequenceIdGnrService" class="egovframework.rte.fdl.idgnr.impl.EgovSequenceIdGnrServiceImpl" 
+		p:dataSource-ref="dataSource"
+		p:useBigDecimals="false"
+		p:query="SELECT BOARD_SEQ.NEXTVAL FROM DUAL"
+	/>
+	
+	<bean id="egovSequenceBoardNOService" class="egovframework.rte.fdl.idgnr.impl.EgovSequenceIdGnrServiceImpl" 
+		p:dataSource-ref="dataSource"
+		p:useBigDecimals="false"
+		p:query="SELECT NVL(MAX(BO_NO),0) FROM BOARD"
+	/>
+			
+</beans>

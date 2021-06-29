@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.anyapart.commonsweb.dao.FareRateDAO">
+
+<!-- 	<resultMap id="frMap" type="java.util.HashMap"> -->
+<!-- 		<result property="frId" column="FRID" javaType="java.lang.String" /> -->
+<!-- 		<collection property="fareRateVO" javaType="kr.or.anyapart.vo.FareRateVO" autoMapping="true"> -->
+<!-- 			<id property="frId" column="FR_ID"/> -->
+<!-- 		</collection> -->
+<!-- 	</resultMap> -->
+
+	<select id="selectFareRateList" resultType="kr.or.anyapart.vo.FareRateVO">
+		SELECT FR_ID
+			   ,FR
+			   ,FR_CONTENT
+			   ,FR_HOWTO
+		FROM FARERATE
+		ORDER BY ROWID
+	</select>
+
+</mapper>

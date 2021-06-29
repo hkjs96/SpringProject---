@@ -1,0 +1,445 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.anyapart.resident.dao.ResidentDAO">
+	<!-- 입주관리 -->
+	<sql id="moveinFromClause">
+		FROM RESIDENT
+		RIGHT OUTER JOIN HOUSE ON (RESIDENT.HOUSE_CODE = HOUSE.HOUSE_CODE AND HOUSE.MOVE_YN='Y')
+	</sql>
+	<sql id="moveinSearchFrag">
+		<trim prefix=" WHERE" prefixOverrides="AND">
+			<if test="searchVO!=null">
+				<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchVO.searchAptCode)">
+					 AND INSTR(HOUSE.HOUSE_CODE, #{searchVO.searchAptCode}) > 0
+					 AND RES_MOVEOUT IS NULL
+				</if>
+				<if test="searchDetail!=null">
+					<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.dongStart)
+			 				  and @org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.hoStart) 
+			 				  and @org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.dongEnd)
+			 				  and @org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.hoEnd)">
+						AND HOUSE.HOUSE_CODE BETWEEN #{searchVO.searchAptCode}||'D'||#{searchDetail.dongStart}||'H'||#{searchDetail.hoStart}
+												 AND #{searchVO.searchAptCode}||'D'||#{searchDetail.dongEnd}||'H'||#{searchDetail.hoEnd}
+					</if>
+					<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.resMoveinStart)
+					          and @org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.resMoveinEnd)"
+					>
+						AND RES_MOVEIN BETWEEN TO_DATE(#{searchDetail.resMoveinStart},'YYYY-MM-DD') 
+										   AND TO_DATE(#{searchDetail.resMoveinEnd},'YYYY-MM-DD')
+					</if>
+					<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.resName)"
+					>
+						AND INSTR(RES_NAME, #{searchDetail.resName}) > 0
+					</if>
+					<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.moveYn)">
+						<choose>
+							<when test='searchDetail.moveYn eq "1".toString()'>
+								AND MEM_ID IS NOT NULL
+							</when>
+							<when test='searchDetail.moveYn eq "2".toString()'>
+								AND MEM_ID IS NULL
+							</when>
+						</choose>
+					</if>
+				</if>
+			</if>
+		</trim>
+	</sql>
+	
+	<!-- 입주일 오름,내림차순 / 전체 선택시는 동호순 -->
+	<sql id="moveinOrderFrag">
+		<if test="searchDetail!=null">
+			<choose>
+				<when test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.sortType)">
+					<choose>
+						<when test='searchDetail.sortType eq "1".toString()'>
+							ORDER BY RES_MOVEIN DESC
+						</when>
+						<when test='searchDetail.sortType eq "2".toString()'>
+							ORDER BY RES_MOVEIN ASC
+						</when>
+						<otherwise>
+							ORDER BY HOUSE.HOUSE_CODE ASC
+						</otherwise>
+					</choose>
+				</when>
+				<otherwise>
+					ORDER BY HOUSE.HOUSE_CODE ASC
+				</otherwise>
+			</choose>
+		</if>
+	</sql>
+	
+	
+	<select id="selectResidentCount" parameterType="kr.or.anyapart.vo.PagingVO" resultType="int">
+		SELECT COUNT(*)
+		<include refid="moveinFromClause"/>
+        <include refid="moveinSearchFrag"/>
+	</select>
+	
+	
+	<select id="selectResidentList" parameterType="kr.or.anyapart.vo.PagingVO" resultType="kr.or.anyapart.resident.vo.ResidentVO">
+		SELECT B.*
+			FROM (
+			        SELECT ROWNUM RNUM
+			               , A.*
+			          FROM (
+			                 SELECT DONG
+			                          , HO
+			                          , HOUSE.HOUSE_CODE
+			                          , HOUSE_AREA
+			                          , MEM_ID
+			                          , RES_NAME
+			                          , RES_HP
+			                          , RES_TEL
+			                          , RES_MAIL
+			                          , TO_CHAR(RES_BIRTH, 'YYYY-MM-DD') RES_BIRTH
+			                          , RES_JOB
+			                          , TO_CHAR(RES_MOVEIN, 'YYYY-MM-DD') RES_MOVEIN
+			                          , RES_MOVEOUT
+			                          , DECODE(MOVE_YN, 'Y', '입주', '미입주') MOVE_YN
+			                   <include refid="moveinFromClause"/>
+			                   <include refid="moveinSearchFrag"/>
+			                   <include refid="moveinOrderFrag"/>
+			                ) A
+			        )B
+			WHERE RNUM BETWEEN #{startRow} AND #{endRow}
+	</select>
+	
+	<select id="selectDongList" parameterType="kr.or.anyapart.apart.vo.HouseVO" resultType="kr.or.anyapart.apart.vo.HouseVO">
+		SELECT DISTINCT DONG
+		  FROM HOUSE
+		 WHERE INSTR(HOUSE_CODE, #{aptCode}) > 0
+	</select>
+	
+	<sql id="hoSearchFrag">
+		<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(aptCode)">
+			WHERE INSTR(HOUSE_CODE, #{aptCode}) > 0
+		</if>
+		<if test="dong != null and dong != '0000'">
+			AND DONG = #{dong}
+		</if>
+	</sql>
+	<select id="selectHoList" parameterType="kr.or.anyapart.apart.vo.HouseVO" resultType="kr.or.anyapart.apart.vo.HouseVO">
+		SELECT DISTINCT HO
+		  FROM HOUSE
+         <include refid="hoSearchFrag"/>
+      ORDER BY HO
+	</select>
+	
+	<!-- 입주등록 관련 쿼리 -->
+	<select id="selectHouseMoveYn" parameterType="kr.or.anyapart.resident.vo.ResidentVO" resultType="String">
+		SELECT MOVE_YN
+		  FROM HOUSE
+		 WHERE HOUSE_CODE = #{houseCode}
+	</select>
+	<insert id="insertMember" parameterType="kr.or.anyapart.vo.MemberVO">
+		<selectKey order="BEFORE" keyProperty="memId" resultType="String">
+			SELECT #{aptCode}||'R'||LPAD(NVL(MAX(SUBSTR(MEM_ID,7)),0)+1,5,0)
+			  FROM RESIDENT
+		     WHERE INSTR(MEM_ID, #{aptCode})>0
+		</selectKey>
+		 INSERT INTO MEMBER (
+				    MEM_ID,
+				    MEM_NICK,
+				    MEM_PASS,
+				    MEM_ROLE,
+				    MEM_DELETE
+				) VALUES (
+				    #{memId, jdbcType=VARCHAR}
+				, #{memNick, jdbcType=VARCHAR}
+				, #{memPass, jdbcType=VARCHAR}
+				, #{memRole, jdbcType=VARCHAR}
+				, #{memDelete, jdbcType=CHAR}
+				)
+	</insert>
+	<insert id="insertResident" parameterType="kr.or.anyapart.resident.vo.ResidentVO">
+		INSERT INTO RESIDENT (
+			    MEM_ID,
+			    HOUSE_CODE,
+			    RES_NAME,
+			    RES_HP,
+			    RES_TEL,
+			    RES_MAIL,
+			    RES_BIRTH,
+			    RES_JOB,
+			    RES_MOVEIN
+			) VALUES (
+			     #{memId, jdbcType=VARCHAR}
+			    , #{houseCode, jdbcType=VARCHAR}
+			    , #{resName, jdbcType=VARCHAR}
+			    , #{resHp, jdbcType=VARCHAR}
+			    , #{resTel, jdbcType=VARCHAR}
+			    , #{resMail, jdbcType=VARCHAR}
+			    , #{resBirth, jdbcType=DATE}
+			    , #{resJob, jdbcType=VARCHAR}
+			    , #{resMovein, jdbcType=DATE}
+			)
+	</insert>
+	<update id="updateHouseMoveYn" parameterType="kr.or.anyapart.resident.vo.ResidentVO">
+		UPDATE HOUSE
+		   SET MOVE_YN = 'Y'
+		 WHERE HOUSE_CODE = #{houseCode}
+	</update>
+	
+	<!-- 입주민정보수정 -->
+	<update id="updateResident" parameterType="kr.or.anyapart.resident.vo.ResidentVO">
+		UPDATE RESIDENT
+		   SET RES_NAME = #{resName, jdbcType=VARCHAR}
+		       ,RES_HP = #{resHp, jdbcType=VARCHAR}
+		       ,RES_TEL = #{resTel, jdbcType=VARCHAR}
+		       ,RES_MAIL = #{resMail, jdbcType=VARCHAR}
+		       ,RES_BIRTH = #{resBirth, jdbcType=DATE}
+		       ,RES_JOB = #{resJob, jdbcType=VARCHAR}
+		WHERE MEM_ID = #{memId}
+	</update>
+	
+	<!-- 전출관리 -->
+	
+	<sql id="moveoutFromClause">
+		FROM RESIDENT
+		INNER JOIN HOUSE ON (RESIDENT.HOUSE_CODE = HOUSE.HOUSE_CODE)
+	</sql>
+	<sql id="moveoutSearchFrag">
+		<trim prefix=" WHERE" prefixOverrides="AND">
+			<if test="searchVO!=null">
+				<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchVO.searchAptCode)">
+					 AND INSTR(HOUSE.HOUSE_CODE, #{searchVO.searchAptCode}) > 0
+					 AND RES_MOVEOUT IS NOT NULL
+				</if>
+				<if test="searchDetail!=null">
+					<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.dongStart)
+			 				  and @org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.hoStart) 
+			 				  and @org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.dongEnd)
+			 				  and @org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.hoEnd)">
+						AND HOUSE.HOUSE_CODE BETWEEN #{searchVO.searchAptCode}||'D'||#{searchDetail.dongStart}||'H'||#{searchDetail.hoStart}
+												 AND #{searchVO.searchAptCode}||'D'||#{searchDetail.dongEnd}||'H'||#{searchDetail.hoEnd}
+					</if>
+					<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.resMoveoutStart)
+					          and @org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.resMoveoutEnd)"
+					>
+						AND RES_MOVEOUT BETWEEN TO_DATE(#{searchDetail.resMoveoutStart},'YYYY-MM-DD')
+										   AND  TO_DATE(#{searchDetail.resMoveoutEnd},'YYYY-MM-DD')
+					</if>
+					<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.resName)"
+					>
+						AND INSTR(RES_NAME, #{searchDetail.resName}) > 0
+					</if>
+				</if>
+			</if>
+		</trim>
+	</sql>
+	
+	<!-- 전출일 오름,내림차순 / 전체 선택시는 동호순 -->
+	<sql id="moveoutOrderFrag">
+		<if test="searchDetail!=null">
+			<choose>
+				<when test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.sortType)">
+					<choose>
+						<when test='searchDetail.sortType eq "1".toString()'>
+							ORDER BY RES_MOVEOUT DESC
+						</when>
+						<when test='searchDetail.sortType eq "2".toString()'>
+							ORDER BY RES_MOVEOUT ASC
+						</when>
+						<otherwise>
+							ORDER BY HOUSE.HOUSE_CODE ASC
+						</otherwise>
+					</choose>
+				</when>
+				<otherwise>
+					ORDER BY HOUSE.HOUSE_CODE ASC
+				</otherwise>
+			</choose>
+		</if>
+	</sql>
+	
+	
+	
+	
+	
+	
+	<select id="selectMoveoutResidentCount" parameterType="kr.or.anyapart.vo.PagingVO" resultType="int">
+		SELECT COUNT(*)
+		<include refid="moveoutFromClause"/>
+        <include refid="moveoutSearchFrag"/>
+	</select>
+	
+	<select id="selectMoveoutResidentList" parameterType="kr.or.anyapart.vo.PagingVO" resultType="kr.or.anyapart.resident.vo.ResidentVO">
+		SELECT B.*
+		FROM (
+		        SELECT ROWNUM RNUM
+		               , A.*
+		          FROM (
+						SELECT DONG
+						      , HO
+						      , RESIDENT.HOUSE_CODE HOUSE_CODE
+						      , HOUSE_AREA
+						      , HOUSE.MOVE_YN MOVE_YN
+						      , MEM_ID
+						      , RES_NAME
+						      , RES_HP
+						      , RES_TEL
+						      , RES_MAIL
+						      , TO_CHAR(RES_BIRTH, 'YYYY-MM-DD') RES_BIRTH
+						      , RES_JOB
+						      , TO_CHAR(RES_MOVEIN, 'YYYY-MM-DD') RES_MOVEIN 
+						      , TO_CHAR(RES_MOVEOUT, 'YYYY-MM-DD') RES_MOVEOUT 
+						<include refid="moveoutFromClause"/>
+						<include refid="moveoutSearchFrag"/>
+						<include refid="moveoutOrderFrag"/>
+			                ) A
+			        )B
+			WHERE RNUM BETWEEN #{startRow} AND #{endRow}
+	</select>
+	
+	<resultMap type="kr.or.anyapart.resident.vo.ResidentVO" id="residentMap" autoMapping="true">
+		<id property="memId" column="MEMID"/>
+		<collection property="carList" ofType="kr.or.anyapart.car.vo.CarVO" autoMapping="true">
+			<id property="carNo" column="CAR_NO"/>
+			<id property="memId" column="MEM_ID"/>
+		</collection>
+	</resultMap>
+	
+	<select id="selectMoveoutResident" parameterType="kr.or.anyapart.resident.vo.ResidentVO" resultMap="residentMap">
+		SELECT A.MEM_ID MEMID
+		        , DONG
+				, HO
+				, HOUSE_AREA
+				, RES_NAME
+				, RES_HP
+				, RES_TEL
+				, RES_MAIL
+				, TO_CHAR(RES_BIRTH, 'YYYY-MM-DD') RES_BIRTH
+				, RES_JOB
+				, TO_CHAR(RES_MOVEIN, 'YYYY-MM-DD') RES_MOVEIN 
+				, TO_CHAR(RES_MOVEOUT, 'YYYY-MM-DD') RES_MOVEOUT 
+		       
+		       , CAR_NO
+		       , B.MEM_ID
+		       , CAR_CODE
+		       , CAR_TYPE
+		      
+		FROM RESIDENT A
+		INNER JOIN HOUSE C ON (A.HOUSE_CODE = C.HOUSE_CODE)
+		LEFT OUTER JOIN CAR B ON (A.MEM_ID = B.MEM_ID)
+		WHERE A.MEM_ID = #{memId}
+	</select>
+	
+	<select id="selectResidentByHouseCode" parameterType="kr.or.anyapart.resident.vo.ResidentVO" resultType="kr.or.anyapart.resident.vo.ResidentVO">
+		SELECT *
+		  FROM RESIDENT
+		 WHERE HOUSE_CODE = #{houseCode}
+		   AND RES_MOVEOUT IS NULL
+	</select>
+	
+	<delete id="deleteResident" parameterType="kr.or.anyapart.resident.vo.ResidentVO" statementType="CALLABLE">
+	<!-- DB에서의 쿼리 : EXEC P_MOVEOUT('20210216', 'A0001R00012', 'A0001D1401H1201' ); -->
+	<!-- 전출일, 입주민코드, 하우스코드 -->
+		{
+			CALL P_MOVEOUT(
+				#{resMoveout, javaType=string, jdbcType=DATE, mode=IN}
+				, #{memId, javaType=string, jdbcType=VARCHAR, mode=IN}
+				, #{houseCode, javaType=string, jdbcType=VARCHAR, mode=IN}
+				)
+		}
+	
+	
+	</delete>
+	
+	<update id="cancelResidentMoveout" parameterType="kr.or.anyapart.resident.vo.ResidentVO" statementType="CALLABLE">
+	<!-- DB에서의 쿼리 : EXEC P_MOVEOUTCANCEL('A0001R00012', 'A0001D1401H1201' ); -->
+	<!-- 입주민코드, 하우스코드 -->
+		{
+			CALL P_MOVEOUTCANCEL(
+				 #{memId, javaType=string, jdbcType=VARCHAR, mode=IN}
+				, #{houseCode, javaType=string, jdbcType=VARCHAR, mode=IN}
+				)
+		}
+	</update>
+	
+	
+	<!-- 오피스대시보드 전입전출 추이 -->
+	<select id="selectMoveinCntMonthly" parameterType="kr.or.anyapart.resident.vo.ResidentVO" resultType="kr.or.anyapart.resident.vo.ResidentVO">
+		SELECT TO_CHAR(b.dt, 'YYYY-MM') AS RES_MOVEIN
+		     , NVL(SUM(a.cnt), 0) RNUM
+		  FROM ( SELECT TO_CHAR(RES_MOVEIN, 'YYYY-MM-DD') AS RES_MOVEIN
+		              , COUNT(*) cnt
+		           FROM RESIDENT
+		          WHERE RES_MOVEIN BETWEEN TO_DATE(#{resMoveinStart}, 'YYYY-MM-DD')
+		                               AND TO_DATE(#{resMoveinEnd}, 'YYYY-MM-DD') 
+		            <![CDATA[
+		            AND INSTR(MEM_ID,#{aptCode})>0
+		          GROUP BY TO_CHAR(RES_MOVEIN, 'YYYY-MM-DD') 
+		        ) a
+		      , ( SELECT TO_DATE(#{resMoveinStart},'YYYY-MM-DD') + LEVEL - 1 AS dt
+		            FROM dual 
+		         CONNECT BY LEVEL <= (TO_DATE(#{resMoveinEnd},'YYYY-MM-DD') 
+		                            - TO_DATE(#{resMoveinStart},'YYYY-MM-DD') + 1)
+		        ) b
+		        ]]>
+		  WHERE b.dt = a.RES_MOVEIN(+)
+		  GROUP BY TO_CHAR(b.dt, 'YYYY-MM')
+		  ORDER BY TO_CHAR(b.dt, 'YYYY-MM')
+	</select>
+	<select id="selectMoveoutCntMonthly" parameterType="kr.or.anyapart.resident.vo.ResidentVO" resultType="kr.or.anyapart.resident.vo.ResidentVO">
+		SELECT TO_CHAR(b.dt, 'YYYY-MM') AS RES_MOVEOUT
+		 , NVL(SUM(a.cnt), 0) RNUM
+		FROM ( SELECT TO_CHAR(RES_MOVEOUT, 'YYYY-MM-DD') AS RES_MOVEOUT
+		          , COUNT(*) cnt
+		       FROM RESIDENT
+		      WHERE RES_MOVEOUT BETWEEN TO_DATE(#{resMoveoutStart}, 'YYYY-MM-DD')
+		                           AND TO_DATE(#{resMoveoutEnd}, 'YYYY-MM-DD') 
+		        <![CDATA[
+		        AND INSTR(MEM_ID,#{aptCode})>0
+		      GROUP BY TO_CHAR(RES_MOVEOUT, 'YYYY-MM-DD') 
+		    ) a
+		  , ( SELECT TO_DATE(#{resMoveoutStart},'YYYY-MM-DD') + LEVEL - 1 AS dt
+		        FROM dual 
+		     CONNECT BY LEVEL <= (TO_DATE(#{resMoveoutEnd},'YYYY-MM-DD') 
+		                        - TO_DATE(#{resMoveoutStart},'YYYY-MM-DD') + 1)
+		    ) b
+		    ]]>
+		WHERE b.dt = a.RES_MOVEOUT(+)
+		GROUP BY TO_CHAR(b.dt, 'YYYY-MM')
+		ORDER BY TO_CHAR(b.dt, 'YYYY-MM')
+	</select>
+	
+	<!-- 오피스대시보드 입주세대 통계 -->
+	<select id="selectHouseInfoBySpace" parameterType="kr.or.anyapart.maintenancecost.vo.CostVO" resultType="kr.or.anyapart.apart.vo.HouseVO">
+		WITH TOTAL AS (
+		SELECT COUNT(MOVE_YN) TOTAL_CNT
+		        ,HOUSE_AREA
+		  FROM HOUSE
+		  WHERE APT_CODE=#{aptCode}
+		  GROUP BY HOUSE_AREA
+		  ORDER BY HOUSE_AREA
+		),
+		MOVEIN AS (
+		SELECT COUNT(MOVE_YN) MOVEIN_CNT
+		        ,HOUSE_AREA
+		  FROM HOUSE
+		  WHERE APT_CODE=#{aptCode}
+		  AND MOVE_YN = 'Y'
+		  GROUP BY HOUSE_AREA
+		  ORDER BY HOUSE_AREA
+		),
+		MOVEOUT AS (
+		SELECT COUNT(MOVE_YN) MOVEOUT_CNT
+		        ,HOUSE_AREA
+		  FROM HOUSE
+		  WHERE APT_CODE=#{aptCode}
+		  AND MOVE_YN = 'N'
+		  GROUP BY HOUSE_AREA
+		  ORDER BY HOUSE_AREA
+		)
+		SELECT NVL(TOTAL_CNT,0)   	 	TOTAL_HOUSE_CNT
+		        ,NVL(MOVEIN_CNT,0) 		MOVEIN_HOUSE_CNT
+		        ,NVL(MOVEOUT_CNT,0)	 	MOVEOUT_HOUSE_CNT
+		        ,NVL(TOTAL.HOUSE_AREA,0) HOUSE_AREA
+		FROM TOTAL 
+		LEFT OUTER JOIN MOVEIN ON (TOTAL.HOUSE_AREA = MOVEIN.HOUSE_AREA)
+		LEFT OUTER JOIN MOVEOUT ON (TOTAL.HOUSE_AREA = MOVEOUT.HOUSE_AREA)
+		ORDER BY HOUSE_AREA
+	</select>
+</mapper>

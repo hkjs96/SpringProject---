@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.anyapart.asset.buy.dao.ProdDetailDAO">
+
+	<sql id="searchFrag">
+		<where>
+			B.APT_CODE = #{searchVO.searchAptCode}
+			<if test="searchDetail!=null and @org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.prodCode)">
+				AND B.PROD_CODE = #{searchDetail.prodCode} 
+			</if>
+			<if test="searchDetail!=null and @org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.endDay) and @org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.startDay)">	
+				AND PROD_IO_DATE BETWEEN TO_DATE(#{searchDetail.startDay}, 'YYYY/MM/DD') AND TO_DATE(#{searchDetail.endDay}, 'YYYY/MM/DD')
+			</if>
+			<if test="searchDetail!=null and @org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.endDay) and @org.apache.commons.lang3.StringUtils@isBlank(searchDetail.startDay)">	
+				AND PROD_IO_DATE TO_DATE(#{searchDetail.endDay}, 'YYYY/MM/DD')
+			</if>
+			<if test="searchDetail!=null and @org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.startDay) and @org.apache.commons.lang3.StringUtils@isBlank(searchDetail.endDay)">	
+				AND PROD_IO_DATE TO_DATE(#{searchDetail.startDay}, 'YYYY/MM/DD')
+			</if>
+ 		 	<if test="searchVO!=null and @org.apache.commons.lang3.StringUtils@isNotBlank(searchVO.searchWord)">
+		 		AND INSTR(PROD_NAME , #{searchVO.searchWord}) > 0
+		 	</if>
+		 	<if test="searchDetail!=null and @org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.prodIo)">
+		 		AND PROD_IO = #{searchDetail.prodIo}
+		 	</if>
+		</where>
+<!-- 		ORDER BY PROD_IO_DATE DESC, A.PROD_ID -->
+		ORDER BY PROD_IO_DATE DESC, A.IO_NO DESC
+	</sql>
+
+	<select id="countDetail" parameterType="kr.or.anyapart.vo.PagingVO" resultType="int">
+		SELECT
+		   COUNT(*)
+		FROM
+		      PRODDETAIL A LEFT OUTER JOIN PROD B ON ( A.PROD_ID = B.PROD_ID )
+		                   LEFT OUTER JOIN COMMONCODE C ON( A.PROD_IO = C.CODE_ID)
+		                   LEFT OUTER JOIN COMMONCODE D ON( B.PROD_CODE = D.CODE_ID)
+		<include refid="searchFrag" />
+	</select>
+
+	<select id="retrieveDetailList" parameterType="kr.or.anyapart.vo.PagingVO" resultType="kr.or.anyapart.asset.vo.ProdDetailVO">
+		SELECT B.*
+			FROM (
+				SELECT A.*, ROWNUM RNUM
+					FROM ( 
+						SELECT
+						    IO_NO
+						    , A.PROD_ID
+						    , B.PROD_NAME
+						    , TO_CHAR(PROD_IO_DATE,'YYYY-MM-DD') AS PROD_IO_DATE
+						    , PROD_IO_QTY
+						    , C.CODE_NAME AS PROD_IO
+						    , D.CODE_NAME AS PROD_CODE
+						FROM
+						      PRODDETAIL A LEFT OUTER JOIN PROD B ON ( A.PROD_ID = B.PROD_ID )
+						                   LEFT OUTER JOIN COMMONCODE C ON( A.PROD_IO = C.CODE_ID)
+						                   LEFT OUTER JOIN COMMONCODE D ON( B.PROD_CODE = D.CODE_ID)
+						<include refid="searchFrag" />
+					) A
+			) B
+		<![CDATA[		
+			WHERE RNUM >= #{startRow} AND RNUM <= #{endRow}
+		]]>
+			
+	</select>
+
+<!-- 	<insert id="insertDetail" parameterType="java.util.List" statementType="CALLABLE"> -->
+	<insert id="insertDetail" parameterType="java.util.List">
+<!-- 		<foreach collection="list" item="detail" index="index" separator=" "> -->
+		<foreach collection="list" item="detail" index="index" separator=" " open="INSERT ALL" close="SELECT * FROM DUAL">
+			INTO PRODDETAIL (
+					IO_NO,
+				    PROD_ID,
+				    PROD_IO_DATE,
+				    PROD_IO_QTY,
+				    PROD_IO
+			) VALUES (
+				( SELECT NVL(MAX(IO_NO),0) + 1 + #{index}
+			        FROM PRODDETAIL
+			    )
+				, #{detail.prodId}
+				, #{detail.prodIoDate}
+				, #{detail.prodIoQty}
+				, #{detail.prodIo}
+			)
+<!-- 			{ -->
+<!-- 				CALL P_PRODDETAIL( -->
+<!-- 					#{detail.prodId} -->
+<!-- 					, #{detail.prodIoDate} -->
+<!-- 					, #{detail.prodIoQty} -->
+<!-- 					, #{detail.prodIo} -->
+<!-- 				) -->
+<!-- 			} -->
+		</foreach>
+		
+	</insert>
+
+	<update id="updateProdQty" parameterType="kr.or.anyapart.asset.vo.ProdDetailVO">
+		UPDATE PROD
+		<choose>
+			<when test="@org.apache.commons.lang3.StringUtils@isNotBlank(prodIo) and prodIo eq 'USE'">
+				SET PROD_QTY = PROD_QTY - #{prodIoQty}	
+			</when>
+			<otherwise>
+				SET PROD_QTY = PROD_QTY + #{prodIoQty}
+			</otherwise>
+		</choose>
+		 
+		WHERE PROD_ID = #{prodId} 
+	</update>
+
+	<update id="updateDetail" parameterType="kr.or.anyapart.asset.vo.ProdDetailVO">
+		UPDATE PRODDETAIL
+		SET
+			PROD_IO_DATE = TO_DATE(#{prodIoDate}, 'YYYY/MM/DD')
+			, PROD_IO_QTY = #{prodIoQty}
+			, PROD_IO = #{prodIo}
+		WHERE IO_NO = #{ioNo}
+	</update>
+	
+	<update id="rollbackProdQty" parameterType="kr.or.anyapart.asset.vo.ProdDetailVO">
+		UPDATE PROD
+		<choose>
+			<when test="@org.apache.commons.lang3.StringUtils@isNotBlank(prodIo) and prodIo eq 'USE'">
+				SET PROD_QTY = PROD_QTY + #{prodIoQty}	
+			</when>
+			<otherwise>
+				SET PROD_QTY = PROD_QTY - #{prodIoQty}
+			</otherwise>
+		</choose>
+		 
+		WHERE PROD_ID = #{prodId}
+	</update>
+	
+	<select id="retrieveDetail" parameterType="kr.or.anyapart.asset.vo.ProdDetailVO" resultType="kr.or.anyapart.asset.vo.ProdDetailVO">
+		SELECT
+		    PROD_ID,
+		    PROD_IO_DATE,
+		    PROD_IO_QTY,
+		    PROD_IO,
+		    IO_NO
+		FROM
+		    PRODDETAIL
+		WHERE IO_NO = #{ioNo}
+	</select>
+	<delete id="deleteDetail" parameterType="int">
+		DELETE FROM PRODDETAIL
+		WHERE
+		    IO_NO = #{ioNo}
+	</delete>
+	
+		
+</mapper>

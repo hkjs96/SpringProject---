@@ -1,0 +1,62 @@
+<%@ page language="java" contentType="text/html; charset=UTF-8"
+    pageEncoding="UTF-8"%>
+<table class="table table-bordered">
+	<tbody>
+		<tr>
+			<th>사용자 코드</th>
+			<td>A0001E001</td>
+		</tr>
+		<tr>
+			<th>아파트코드</th>
+			<td>A0001</td>
+		</tr>
+		<tr>
+			<th>사원명</th>
+			<td>이소장</td>
+		</tr>
+		<tr>
+			<th>핸드폰 번호</th>
+			<td>01026214615</td>
+		</tr>
+		<tr>
+			<th>자택번호</th>
+			<td>0442853920</td>
+		</tr>
+		<tr>
+			<th>이메일</th>
+			<td>pyoedab@lycos.co.kr</td>
+		</tr>
+		<tr>
+			<th>생년월일</th>
+			<td>76/01/15</td>
+		</tr>
+		<tr>
+			<th>주소</th>
+			<td>76/01/15</td>
+		</tr>
+		<tr>
+			<th>상세주소</th>
+			<td>76/01/15</td>
+		</tr>
+		<tr>
+			<th>주부</th>
+			<td>76/01/15</td>
+		</tr>
+		<tr>
+			<th>계좌번호</th>
+			<td>76/01/15</td>
+		</tr>
+		<tr>
+			<th>직책</th>
+			<td>76/01/15</td>
+		</tr>
+		<tr>
+			<th>프로필사진</th>
+			<td>76/01/15</td>
+		</tr>
+		<tr>
+			<th>입사일</th>
+			<td>76/01/15</td>
+		</tr>
+	</tbody>	
+</table>

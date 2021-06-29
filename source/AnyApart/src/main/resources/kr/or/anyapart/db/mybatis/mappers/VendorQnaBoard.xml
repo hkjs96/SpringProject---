@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.anyapart.board.vendorqna.dao.VendorQnaDAO">
+
+	<sql id="unansweredFrag">
+		<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.unAnswered)">
+			AND C.BO_DEPTH = 1
+			AND E.BO_NO IS NULL
+		</if>
+	</sql>
+
+	<sql id="searchFrag">
+		<where>
+<!-- 		<trim prefix=" WHERE " prefixOverrides="AND"> -->
+				<if test="@org.apache.commons.lang3.StringUtils@isBlank(searchDetail.boType)">
+					CODE_NAME LIKE '벤더문의%'
+				</if>
+			<if test="searchDetail!=null">
+				<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.boType)">
+					CODE_ID = #{searchDetail.boType}
+				</if>
+			</if>
+			<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchVO.searchWord)">
+				<choose>
+					<when test="'boWriter'.equals(searchVO.searchType)">
+						AND	INSTR(MEM_NICK, #{searchVO.searchWord}) > 0
+					</when>
+					<when test="'boContent'.equals(searchVO.searchType)">
+						AND	INSTR(C.BO_CONTENT, #{searchVO.searchWord}) > 0
+					</when>
+					<when test="'boTitle'.equals(searchVO.searchType)">
+						AND	INSTR(C.BO_TITLE, #{searchVO.searchWord}) > 0
+					</when>
+					<otherwise>
+						AND	(INSTR(C.MEM_NICK, #{searchVO.searchWord}) > 0
+						  OR INSTR(C.BO_CONTENT, #{searchVO.searchWord}) > 0 
+	       				  OR INSTR(C.BO_TITLE, #{searchVO.searchWord}) > 0 ) 
+					</otherwise>
+				</choose>
+			</if>
+<!-- 			</trim> -->
+		</where>
+	</sql>
+	
+	<sql id="apartBoard">
+		WITH APARTBOARD AS
+		(
+			SELECT
+			    BO_NO, BO_TYPE, BO_TITLE,
+			    MEM_NICK, BO_CONTENT, 
+			    BO_DATE,
+			    BO_HIT, BO_PARENT, BO_DEPTH
+			    , C.APT_CODE
+			    , D.APT_NAME
+			FROM
+			    board A
+			    LEFT OUTER JOIN MEMBER B ON ( A.BO_WRITER = B.MEM_ID ) 
+			    LEFT OUTER JOIN EMPLOYEE C ON B.MEM_ID = C.MEM_ID
+			    LEFT OUTER JOIN APART D ON ( C.APT_CODE = D.APT_CODE )
+			WHERE BO_DELETE IN ('N', 'n')
+			<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchDetail.aptCode)">
+			  AND SUBSTR(A.BO_WRITER,1,5) = #{searchDetail.aptCode}
+			</if>
+			  AND C.APT_CODE = SUBSTR(A.BO_WRITER,1,5)
+			  OR BO_WRITER ='ADMIN'
+		)
+	</sql>
+	
+	<select id="selectOfficeQnaCount" parameterType="kr.or.anyapart.vo.PagingVO" resultType="int">
+		<include refid="apartBoard"/>
+		SELECT count(*)
+		FROM APARTBOARD C JOIN COMMONCODE D ON ( C.BO_TYPE = D.CODE_ID)
+						LEFT OUTER JOIN BOARD E ON (C.BO_NO = E.BO_PARENT)
+		<include refid="searchFrag"/>
+		<include refid="unansweredFrag"/>
+		START WITH C.BO_PARENT IS NULL
+		CONNECT BY PRIOR C.BO_NO = C.BO_PARENT
+	</select>
+	
+	<select id="selectOfficeQnaList" parameterType="kr.or.anyapart.vo.PagingVO" resultType="kr.or.anyapart.board.vo.BoardVO">
+		<include refid="apartBoard"/>
+		SELECT B.*
+			FROM (
+				SELECT A.*, ROWNUM RNUM
+				FROM (
+					SELECT
+			            C.BO_NO, SUBSTR(CODE_NAME,5) AS BO_TYPE, C.BO_TITLE,
+			            C.MEM_NICK AS BO_WRITER, C.BO_CONTENT, TO_CHAR(C.BO_DATE, 'YYYY-MM-DD')BO_DATE,
+			            C.BO_HIT, C.BO_PARENT, C.BO_DEPTH
+			            , E.BO_NO AS ANSWER_FLAG , C.APT_NAME
+			        FROM APARTBOARD C JOIN COMMONCODE D ON ( C.BO_TYPE = D.CODE_ID)
+                   					LEFT OUTER JOIN BOARD E ON (C.BO_NO = E.BO_PARENT)
+					<include refid="searchFrag"/>  <!-- 이거 동적으로 변경되야하는 부분 -->
+					<include refid="unansweredFrag"/>
+					START WITH C.BO_PARENT IS NULL		
+					CONNECT BY PRIOR C.BO_NO = C.BO_PARENT	<!-- 여기는 필수 -->
+					ORDER SIBLINGS BY C.BO_NO DESC
+				) A
+			) B
+		<![CDATA[		
+			WHERE RNUM >= #{startRow} AND RNUM <= #{endRow}
+		]]>
+	</select>
+
+
+	<resultMap type="kr.or.anyapart.board.vo.BoardVO" id="boardMap" autoMapping="true">
+		<id property="boNo" column="BO_NO"/>
+		<collection property="attachList" ofType="kr.or.anyapart.vo.AttachVO" autoMapping="true">
+			<id property="boNo" column="BONO"/>
+			<id property="attSn" column="ATT_SN"/>
+		</collection>
+	</resultMap>
+	
+	<select id="selectOfficeQna" parameterType="int" resultMap="boardMap">
+		SELECT 
+		    A.BO_NO , A.BO_TYPE, A.BO_TITLE,
+		    MEM_NICK as BO_WRITER, A.BO_CONTENT, TO_CHAR(A.BO_DATE,'YYYY-MM-DD') AS BO_DATE,
+		    A.BO_HIT, A.BO_PARENT, A.BO_DEPTH
+		
+		    , C.BO_NO AS "BONO" , ATT_SN, ATT_SAVENAME, ATT_FILENAME
+		    , ATT_FILESIZE, ATT_MIME, ATT_FANCY
+		    , E.BO_NO AS ANSWER_FLAG
+		    , F.APT_NAME
+		FROM(
+		SELECT * FROM BOARD
+		) A
+		    LEFT OUTER JOIN MEMBER B ON ( A.BO_WRITER = B.MEM_ID )
+		    LEFT OUTER JOIN ATTACH C  ON (A.BO_NO = C.BO_NO)
+		    LEFT OUTER JOIN BOARD E ON (A.BO_NO = E.BO_PARENT)
+		    LEFT OUTER JOIN APART F ON ( SUBSTR(A.BO_WRITER,1,5) = F.APT_CODE )
+		WHERE A.BO_NO = #{boNo}		
+		START WITH A.BO_PARENT IS NULL		
+		CONNECT BY PRIOR A.BO_NO = A.BO_PARENT
+		ORDER SIBLINGS BY A.BO_NO DESC
+	</select>
+
+	<insert id="insertOfficeQna" parameterType="kr.or.anyapart.board.vo.BoardVO">
+		<selectKey order="BEFORE" keyProperty="boNo" resultType="int">
+			SELECT NVL(MAX(BO_NO), 0)+1
+			FROM BOARD
+		</selectKey>
+		INSERT INTO board (
+		    BO_NO
+		    , BO_TYPE
+		    , BO_TITLE
+		    , BO_WRITER
+		    , BO_CONTENT
+		    , BO_DATE
+		    , BO_HIT
+		    <if test="boParent!=null and boParent gt 0">
+		    	, BO_PARENT
+		    </if>
+	    	, BO_DEPTH
+		    , BO_DELETE
+		) VALUES (
+		    #{boNo, jdbcType=NUMERIC}
+		    , #{boType, jdbcType=VARCHAR}
+			, #{boTitle, jdbcType=VARCHAR}
+			, #{boWriter, jdbcType=VARCHAR}
+			, #{boContent, jdbcType=CLOB}
+			, sysdate
+			, 0
+			<if test="boParent!=null and boParent gt 0">
+				, #{boParent, jdbcType=NUMERIC}
+		    </if>
+		    <if test="boParent==null">
+				, 1
+		    </if>
+		    <if test="boParent!=null">
+				, 2
+		    </if>
+			, 'N'
+		)
+	</insert>
+
+	<update id="updateOfficeQna" parameterType="kr.or.anyapart.board.vo.BoardFormVO">
+		UPDATE BOARD
+		SET
+			BO_TITLE = #{boTitle, jdbcType=VARCHAR}
+<!-- 			, BO_TYPE = #{boType, jdbcType=VARCHAR} -->
+			, BO_CONTENT = #{boContent, jdbcType=CLOB}
+		WHERE BO_NO = #{boNo, jdbcType=NUMERIC}
+	</update>
+	
+	<update id="incrementHit" parameterType="kr.or.anyapart.board.vo.BoardVO">
+		UPDATE BOARD
+		SET BO_HIT = BO_HIT + 1
+		WHERE BO_NO = #{boNo}
+	</update>
+	
+	<select id="selectDeleteBoard" parameterType="int" resultMap="boardMap">
+		SELECT 
+			A.BO_NO
+			, B.BO_NO AS "BONO"
+			, ATT_SN
+			, ATT_SAVENAME
+		FROM board A LEFT OUTER JOIN ATTACH B ON ( A.BO_NO = B.BO_NO ) 
+		WHERE A.BO_NO = #{boNo}
+		OR   A.BO_PARENT = #{boNo}
+	</select>
+	
+	<delete id="deleteOfficeQna" parameterType="int">
+		DELETE FROM BOARD
+		WHERE BO_NO = #{boNo}
+		OR   BO_PARENT = #{boNo}
+	</delete>
+	
+	<select id="countAnswer" parameterType="kr.or.anyapart.vo.PagingVO" resultType="kr.or.anyapart.board.vo.BoardVO">
+		<include refid="apartBoard"/>
+		SELECT COUNT(C.BO_NO) AS "ALL_NUM" , COUNT(E.BO_NO) AS "ANS_NUM", COUNT(C.BO_NO) - COUNT(E.BO_NO)*2 AS "UN_ANS_NUM" 
+		FROM APARTBOARD C JOIN COMMONCODE D ON ( C.BO_TYPE = D.CODE_ID)
+		                  LEFT OUTER JOIN BOARD E ON (C.BO_NO = E.BO_PARENT)
+		WHERE CODE_NAME LIKE '벤더문의%'
+		START WITH C.BO_PARENT IS NULL
+				CONNECT BY PRIOR C.BO_NO = C.BO_PARENT
+		        ORDER SIBLINGS BY C.BO_NO DESC
+	</select>
+</mapper>

@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper	namespace="kr.or.anyapart.board.officenotice.dao.IOfficeNoticeDAO">
+	<sql id="searchFrag">
+		WHERE BO_TYPE='ONOTICE'
+		<if test="searchVO!=null">
+			<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchVO.searchAptCode)">
+				 AND INSTR(BO_WRITER, #{searchVO.searchAptCode}) > 0
+			</if>
+			<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchVO.searchWord)">
+				<choose>
+					<when test="'title'.equals(searchVO.searchType)">
+						AND INSTR(BO_TITLE, #{searchVO.searchWord}) > 0
+					</when>
+					<when test="'content'.equals(searchVO.searchType)">
+						AND INSTR(BO_CONTENT, #{searchVO.searchWord}) > 0
+					</when>
+					<otherwise>
+						AND 
+						(INSTR(BO_CONTENT, #{searchVO.searchWord}) > 0
+						OR INSTR(BO_TITLE, #{searchVO.searchWord}) > 0)
+					</otherwise>
+				</choose>
+			</if>
+		</if>	
+	</sql>
+	
+	<resultMap type="kr.or.anyapart.board.vo.BoardVO" id="boardMap" autoMapping="true">
+		<id property="boNo" column="BONO"/>
+		<collection property="attachList" ofType="kr.or.anyapart.vo.AttachVO" autoMapping="true">
+			<id property="attSn" column="ATT_SN"/>
+		</collection>
+	</resultMap>
+	
+	<select id="selectOfficeNoticeBoardCount" parameterType="kr.or.anyapart.vo.PagingVO" resultType="int">
+		SELECT COUNT(*)
+		FROM BOARD
+		<include refid="searchFrag" />
+	</select>
+
+	<select id="selectOfficeNoticeBoardList" parameterType="kr.or.anyapart.vo.PagingVO" resultType="kr.or.anyapart.board.vo.BoardVO">
+		SELECT B.*
+		FROM (
+			SELECT A.*, ROWNUM RNUM
+			  FROM (
+				SELECT BO_NO
+				     , BO_TITLE
+				     , B.EMP_NAME AS "BO_WRITER"
+				     , TO_CHAR(BO_DATE, 'YYYY-MM-DD HH:MI') BO_DATE
+				     , BO_HIT
+				  FROM BOARD A INNER JOIN EMPLOYEE B ON (A.BO_WRITER=B.MEM_ID)
+				  <include refid="searchFrag" />
+				  ORDER BY BO_NO DESC
+			) A
+		) B	
+		<![CDATA[
+			WHERE RNUM >= #{startRow} AND RNUM <= #{endRow}
+		]]>
+	</select>
+	
+	<select id="selectOfficeNoticeBoard" parameterType="kr.or.anyapart.board.vo.BoardVO" resultMap="boardMap">
+		SELECT 
+				A.BO_NO BONO
+			   ,BO_TITLE
+			   ,BO_WRITER BO_WRITER_ID
+			   ,C.EMP_NAME BO_WRITER
+			   ,BO_CONTENT
+			   ,TO_CHAR(BO_DATE, 'YYYY-MM-DD HH:MI') BO_DATE
+			   ,BO_HIT
+			   ,BO_PARENT
+			   ,BO_DELETE
+			   ,ATT_SN
+			   ,ATT_SAVENAME
+			   ,ATT_FILENAME
+			   ,ATT_FILESIZE
+			   ,ATT_MIME
+			   ,ATT_FANCY
+		 FROM BOARD A LEFT OUTER JOIN ATTACH B ON(A.BO_NO=B.BO_NO)
+                      INNER JOIN EMPLOYEE C ON(A.BO_WRITER=C.MEM_ID)
+	    WHERE A.BO_NO=#{boNo}
+	</select>
+	
+	<insert id="insertOfficeNoticeBoard" parameterType="kr.or.anyapart.board.vo.BoardVO" > 
+		<selectKey order="BEFORE" keyProperty="boNo" resultType="int">
+			SELECT NVL(MAX(BO_NO), 0)+1
+			FROM BOARD
+		</selectKey>
+		INSERT INTO BOARD (
+			BO_NO
+		   ,BO_TYPE 
+		   ,BO_TITLE
+		   ,BO_WRITER
+		   ,BO_CONTENT
+		   ,BO_DATE
+	    )VALUES(
+		    #{boNo,jdbcType=NUMERIC}
+		   ,'ONOTICE'
+		   ,#{boTitle,jdbcType=VARCHAR}
+		   ,#{boWriter,jdbcType=VARCHAR} 
+		   ,#{boContent,jdbcType=CLOB}
+		   ,SYSDATE
+		)
+	</insert>
+	
+	<update id="updateOfficeNoticeBoard" parameterType="kr.or.anyapart.board.vo.BoardVO">
+		UPDATE BOARD
+		SET
+			BO_TITLE = #{boTitle,jdbcType=VARCHAR}
+		   ,BO_CONTENT = #{boContent,jdbcType=CLOB}
+		   ,BO_DATE = SYSDATE
+		WHERE BO_NO = #{boNo}		
+	</update>
+	
+	<delete id="deleteOfficeNoticeBoard" parameterType="int">
+		DELETE FROM BOARD
+	     WHERE BO_NO IN (
+				SELECT BO_NO
+				  FROM BOARD
+				 START WITH BO_NO = #{bo_no}
+			   CONNECT BY PRIOR BO_NO = BO_PARENT
+			  )
+	</delete>
+	
+	<update id="incrementHit" parameterType="int">
+		UPDATE BOARD
+		   SET BO_HIT = BO_HIT + 1
+		 WHERE BO_NO = #{bo_no}
+	</update>
+</mapper>

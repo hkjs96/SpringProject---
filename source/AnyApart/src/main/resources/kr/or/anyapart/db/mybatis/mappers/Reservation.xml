@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.anyapart.reservation.dao.ReservationDAO">
+
+	<select id="retrieveResident" parameterType="kr.or.anyapart.vo.MemberVO" resultType="kr.or.anyapart.resident.vo.ResidentVO">
+		SELECT
+		    MEM_ID,
+		    HOUSE_CODE,
+		    RES_NAME,
+		    RES_HP,
+		    RES_TEL,
+		    RES_MAIL,
+		    RES_BIRTH,
+		    RES_JOB,
+		    RES_MOVEIN,
+		    RES_MOVEOUT
+		FROM
+		    RESIDENT
+		WHERE MEM_ID = #{memId }
+	</select>
+	
+	<select id="resvCnt" parameterType="kr.or.anyapart.reservation.vo.ReservationVO" resultType="kr.or.anyapart.reservation.vo.ReservationVO">
+		SELECT (SELECT NVL(SUM(RESV_CNT),0)
+		  		  FROM
+			        ( SELECT A.* , B.*
+			            FROM RESERVATION A LEFT OUTER JOIN COMMUNITY B ON (A.CMNT_NO = B.CMNT_NO)
+			           WHERE A.CMNT_NO = #{cmntNo}
+			             AND B.APT_CODE = #{aptCode}
+			             AND RESV_DATE = TO_DATE(#{resvDate}, 'YYYY/MM/DD')
+			        )
+		  		  WHERE 
+				     <![CDATA[		
+						 (TO_NUMBER(RESV_START) >= TO_NUMBER(#{resvStart}) 
+						      AND TO_NUMBER(RESV_END) < TO_NUMBER(#{resvStart}) + 30)
+						      OR TO_NUMBER(RESV_START) < TO_NUMBER(#{resvStart}) + 30
+					]]>
+			 ) AS RESV_CNT
+		FROM DUAL
+		
+	</select>
+	
+	
+
+	<select id="retrieveCommunityList" parameterType="kr.or.anyapart.vo.MemberVO" resultType="kr.or.anyapart.community.vo.CommunityVO">
+		SELECT
+		    A.CMNT_NO,
+		    B.CODE_NAME AS CMNT_CODE,
+		    A.CMNT_NAME,
+		    A.CMNT_SIZE,
+		    A.CMNT_CAPA,
+		    A.CMNT_LIMIT,
+		    A.CMNT_OPEN,
+		    A.CMNT_CLOSE,
+		    A.CMNT_DESC,
+		    A.APT_CODE
+		FROM
+		    COMMUNITY A LEFT OUTER JOIN COMMONCODE B ON (A.CMNT_CODE = B.CODE_ID)
+		WHERE APT_CODE = #{aptCode }
+		
+	</select>
+	
+	<select id="retrieveReservation" parameterType="kr.or.anyapart.community.vo.CommunityVO" resultType="kr.or.anyapart.reservation.vo.ReservationVO">
+		SELECT
+            B.CMNT_NO
+            , C.CMNT_NAME
+            , DETAIL_START AS RESV_START
+            , DETAIL_END AS RESV_END
+            , SUM(RESV_CNT) RESV_CNT
+        FROM
+            RESVDETAIL A LEFT OUTER JOIN RESERVATION B ON (A.RESV_NO = B.RESV_NO)
+                         LEFT OUTER JOIN COMMUNITY C  ON (B.CMNT_NO = C.CMNT_NO)
+        WHERE C.APT_CODE = #{aptCode }
+        <if test="cmntNo != null">
+        	AND B.CMNT_NO = #{cmntNo } 
+        </if>            
+        GROUP BY B.CMNT_NO, C.CMNT_NAME, DETAIL_START, DETAIL_END
+	</select>
+
+	<insert id="reservationInsert" statementType="CALLABLE" parameterType="kr.or.anyapart.reservation.vo.ReservationVO">
+		{ CALL P_RESERVATION(
+					#{resvDate, javaType=string, jdbcType=VARCHAR, mode=IN}
+					, #{resvStart, javaType=string, jdbcType=VARCHAR, mode=IN}
+					, #{resvEnd, javaType=string, jdbcType=VARCHAR, mode=IN}
+					, #{resvCnt, javaType=int, jdbcType=INTEGER, mode=IN}
+					, #{cmntNo, javaType=int, jdbcType=INTEGER, mode=IN}
+					, #{memId, javaType=string, jdbcType=VARCHAR, mode=IN}
+					, #{resvNo, javaType=int, jdbcType=INTEGER,mode=OUT}
+				)
+		}	
+	</insert>
+	
+	<insert id="resvDetailInsert" parameterType="kr.or.anyapart.reservation.vo.ReservationVO" statementType="CALLABLE">
+		{ CALL P_RESERVATION_DETAIL(
+					#{resvDate, javaType=string, jdbcType=VARCHAR, mode=IN}
+					, #{resvStart, javaType=string, jdbcType=VARCHAR, mode=IN}
+					, #{resvEnd, javaType=string, jdbcType=VARCHAR, mode=IN}
+					, #{cmntNo, javaType=int, jdbcType=INTEGER, mode=IN}
+					, #{resvCnt, javaType=int, jdbcType=INTEGER, mode=IN}
+					, #{resvNo, javaType=int, jdbcType=INTEGER,mode=IN}
+					, #{aptCode, javaType=string, jdbcType=VARCHAR, mode=IN}
+					, #{resultCnt, javaType=int, jdbcType=INTEGER, mode=OUT}
+				)
+		}	
+	</insert>
+
+	
+	<sql id="memberReservationFrag">
+		<where>
+			MEM_ID = #{searchDetail.memId }
+			<if test="searchDetail.cmntNo != null">
+				AND A.CMNT_NO = #{searchDetail.cmntNo }
+			</if>
+		</where>
+	</sql>
+
+	<select id="retrieveMemberReservationList" parameterType="kr.or.anyapart.vo.PagingVO" resultType="kr.or.anyapart.reservation.vo.ReservationVO">
+		SELECT B.*
+	    FROM (
+	        SELECT A.*, ROWNUM RNUM
+	        FROM ( 
+					SELECT
+					    RESV_NO,
+					    TO_CHAR(RESV_DATE, 'YYYY-MM-DD') AS RESV_DATE,
+					    SUBSTR(RESV_START,1,2)||':'||SUBSTR(RESV_START,3,4)
+					    ||' ~ '||SUBSTR(RESV_END,1,2)||':'||SUBSTR(RESV_END,3,4) AS RESV_TIME,
+					    RESV_START,
+					    RESV_END,
+					    RESV_CNT,
+					    C.CODE_NAME AS CMNT_CODE,
+					    B.CMNT_NAME,
+					    CASE WHEN TO_CHAR(RESV_DATE) &lt; SYSDATE THEN 'Y'
+					         ELSE 'N'
+					    END AS RESV_LAST
+					FROM
+					    RESERVATION A LEFT OUTER JOIN COMMUNITY B ON (A.CMNT_NO = B.CMNT_NO)
+					    			  LEFT OUTER JOIN COMMONCODE C ON (B.CMNT_CODE = c.CODE_ID)
+					<include refid="memberReservationFrag"/>
+					ORDER BY RESV_NO DESC
+			) A
+	    ) B
+	    <![CDATA[		
+			WHERE RNUM >= #{startRow} AND RNUM <= #{endRow}
+		]]>
+	</select>
+	
+	<select id="retrieveMemberReservationCount" parameterType="kr.or.anyapart.vo.PagingVO" resultType="int">
+		SELECT
+		    COUNT(*)
+		FROM
+		    RESERVATION A LEFT OUTER JOIN COMMUNITY B ON (A.CMNT_NO = B.CMNT_NO)
+		    			  LEFT OUTER JOIN COMMONCODE C ON (B.CMNT_CODE = c.CODE_ID)
+		<include refid="memberReservationFrag"/>
+	</select>
+
+	<delete id="deleteResvDetail" parameterType="kr.or.anyapart.reservation.vo.ReservationVO">
+		DELETE FROM RESVDETAIL
+		WHERE   RESV_NO = #{resvNo } 
+	</delete>
+	
+	<delete id="deleteReservation" parameterType="kr.or.anyapart.reservation.vo.ReservationVO">
+		DELETE FROM RESERVATION
+		WHERE
+		    RESV_NO = #{resvNo } 
+		    AND MEM_ID = #{memId }
+		    AND RESV_DATE > SYSDATE
+	</delete>
+	
+	<select id="officeReservationList" parameterType="kr.or.anyapart.community.vo.CommunityVO" resultType="kr.or.anyapart.reservation.vo.ReservationVO">
+		SELECT
+		    RESV_NO,
+		    TO_CHAR(RESV_DATE, 'YYYY-MM-DD') AS RESV_DATE,
+		    TO_CHAR(RESV_DATE,'YYYY-MM-DD')
+		        ||'T'|| SUBSTR(RESV_START,1,2)
+		        ||':'|| SUBSTR(RESV_START,3,4) AS RESV_START,
+		    TO_CHAR(RESV_DATE,'YYYY-MM-DD')
+		        ||'T'|| SUBSTR(RESV_END,1,2)
+		        ||':'|| SUBSTR(RESV_END,3,4) AS RESV_END,
+		    RESV_CNT,
+		    A.CMNT_NO,
+		    A.MEM_ID
+		    , B.CMNT_NAME
+		    , C.RES_NAME
+		    , C.RES_HP
+		    , SUBSTR(RESV_START,1,2)||':'||SUBSTR(RESV_START,3,4)
+		      ||' ~ '||SUBSTR(RESV_END,1,2)||':'||SUBSTR(RESV_END,3,4) AS RESV_TIME
+		FROM RESERVATION A LEFT OUTER JOIN COMMUNITY B ON (A.CMNT_NO = B.CMNT_NO)
+		                   LEFT OUTER JOIN RESIDENT C ON(A.MEM_ID = C.MEM_ID)
+		WHERE APT_CODE = #{aptCode }
+	</select>
+
+</mapper>

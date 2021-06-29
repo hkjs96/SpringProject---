@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.anyapart.board.freeboard.dao.IFreeBoardDao">
+	<sql id="searchFrag">
+		WHERE BO_TYPE='RBOARD'
+		<if test="searchVO!=null">
+			<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchVO.searchAptCode)">
+				 AND INSTR(BO_WRITER, #{searchVO.searchAptCode}) > 0
+			</if>
+			<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchVO.searchWord)">
+				<choose>
+					<when test="'title'.equals(searchVO.searchType)">
+						AND INSTR(BO_TITLE, #{searchVO.searchWord}) > 0
+					</when>
+					<when test="'writer'.equals(searchVO.searchType)">
+						AND INSTR(MEM_NICK, #{searchVO.searchWord}) > 0
+					</when>
+					<when test="'content'.equals(searchVO.searchType)">
+						AND INSTR(BO_CONTENT, #{searchVO.searchWord}) > 0
+					</when>
+					<otherwise>
+						AND 
+						( INSTR(BO_CONTENT, #{searchVO.searchWord}) > 0
+						OR INSTR(BO_WRITER, #{searchVO.searchWord}) > 0
+						OR INSTR(BO_TITLE, #{searchVO.searchWord}) > 0 )
+					</otherwise>
+				</choose>
+			</if>
+		</if>
+	</sql>
+	
+	<select id="selectBoardCount" parameterType="kr.or.anyapart.vo.PagingVO" resultType="int">
+		SELECT COUNT(*)
+		FROM BOARD
+		LEFT OUTER JOIN MEMBER ON (MEMBER.MEM_ID=BOARD.BO_WRITER)
+		<include refid="searchFrag" />
+	</select>
+	
+	<select id="selectBoardList" parameterType="kr.or.anyapart.vo.PagingVO" resultType="kr.or.anyapart.board.vo.BoardVO">
+		WITH REP AS (
+		    SELECT BO_NO, COUNT(*) REP_CNT
+		    FROM REPLY
+		    GROUP BY BO_NO
+	)
+	SELECT B.*
+		FROM ( 
+				SELECT ROWNUM RNUM
+		               , A.*
+		          <![CDATA[
+		          FROM (SELECT BOARD.BO_NO,
+		          			   DECODE(BO_DEPTH, 1, '', LPAD('└re:', 6*2*(BO_DEPTH-1)+3, '&nbsp;'))  || BO_TITLE AS "BO_TITLE",
+		                       MEM_NICK AS "BO_WRITER",    TO_CHAR(BO_DATE, 'YYYY-MM-DD HH:MI') BO_DATE,    BO_HIT,
+		                       BO_PARENT, BO_DEPTH, NVL(REP_CNT,0) REP_CNT, 
+		                       BO_DELETE
+		                  FROM BOARD
+		                LEFT OUTER JOIN REP ON (REP.BO_NO = BOARD.BO_NO)
+		                INNER JOIN MEMBER ON (MEMBER.MEM_ID = BOARD.BO_WRITER)
+		                ]]>
+                        <include refid="searchFrag"/> 
+                        START WITH BO_PARENT IS NULL
+		                CONNECT BY PRIOR BOARD.BO_NO = BO_PARENT
+		                ORDER SIBLINGS BY BOARD.BO_NO DESC
+				        )A
+			 ) B 
+			 
+		WHERE RNUM BETWEEN #{startRow} AND #{endRow}
+	</select>
+	
+	<resultMap type="kr.or.anyapart.board.vo.BoardVO" id="boardMap" autoMapping="true">
+		<id property="boNo" column="BONO"/>
+		<collection property="attachList" ofType="kr.or.anyapart.vo.AttachVO" autoMapping="true">
+			<id property="boNo" column="BO_NO"/>
+			<id property="attSn" column="ATT_SN"/>
+		</collection>
+		<collection property="replyList" ofType="kr.or.anyapart.board.vo.ReplyVO" autoMapping="true">
+			<id property="repNo" column="REP_NO"/>
+		</collection>
+	</resultMap>
+	
+	<select id="selectBoard" parameterType="kr.or.anyapart.board.vo.BoardVO" resultMap="boardMap">
+		SELECT
+   			A.BO_NO BONO,    BO_TITLE,    BO_CONTENT
+		    ,A.BO_WRITER BO_WRITER_ID
+		    ,D.MEM_NICK BO_WRITER,    TO_CHAR(BO_DATE, 'YYYY-MM-DD HH:MI') BO_DATE,    BO_HIT
+		    ,BO_PARENT,    BO_DEPTH,   BO_DELETE
+            
+		    ,B.BO_NO AS "BO_NO", ATT_SN, ATT_SAVENAME,    ATT_FILENAME
+            ,ATT_MIME,    ATT_FILESIZE, ATT_FANCY
+		    
+            ,REP_NO, E.MEM_NICK REP_WRITER
+            ,DECODE(LEVEL, 1, '', LPAD('└re:', 3*(REP_DEPTH-1)+3, ' '))  || REP_CONTENT AS "REP_CONTENT"
+		    ,REP_PARENT, REP_DEPTH, TO_CHAR(REP_DATE, 'YYYY-MM-DD HH:MI') REP_DATE
+		FROM    BOARD A LEFT OUTER JOIN ATTACH B ON (A.BO_NO = B.BO_NO)
+		                LEFT OUTER JOIN REPLY C ON (A.BO_NO = C.BO_NO)
+		                LEFT OUTER JOIN MEMBER D ON (A.BO_WRITER = D.MEM_ID)
+                        LEFT OUTER JOIN MEMBER E ON (C.REP_WRITER = E.MEM_ID)
+		WHERE A.BO_NO = #{boNo}
+        START WITH REP_PARENT IS NULL
+        CONNECT BY PRIOR REP_NO = REP_PARENT
+	</select>
+	<update id="incrementHit" parameterType="kr.or.anyapart.board.vo.BoardVO">
+		UPDATE BOARD
+		SET BO_HIT = BO_HIT + 1
+		WHERE BO_NO = #{boNo}
+	</update>
+	
+	<insert id="insertBoard" parameterType="kr.or.anyapart.board.vo.BoardVO">
+		<selectKey order="BEFORE" keyProperty="boNo" resultType="int">
+			SELECT NVL(MAX(BO_NO), 0)+1
+			FROM BOARD
+		</selectKey>
+		
+		INSERT INTO board (
+		    BO_NO
+		    ,BO_TYPE
+		    ,BO_TITLE
+		    ,BO_WRITER   
+		    ,BO_CONTENT
+		    ,BO_DATE
+		    ,BO_HIT
+		    ,BO_DELETE
+	    <if test="boParent!=null and boParent gt 0">
+	    	,BO_PARENT
+	    </if>
+	    <if test="boDepth!=null and boDepth gt 0">
+	    	,BO_DEPTH
+	    </if>
+	    
+		) VALUES (
+		  	#{boNo,jdbcType=NUMERIC}
+		  	,'RBOARD'
+		  	,#{boTitle,jdbcType=VARCHAR}
+		  	,#{boWriter,jdbcType=VARCHAR}
+		  	,#{boContent,jdbcType=CLOB}
+		  	,sysdate
+		  	,0
+		  	,'N'
+		    <if test="boParent!=null and boParent gt 0">
+		    	, #{boParent,jdbcType=NUMERIC}
+		    </if>
+		    <if test="boDepth!=null and boDepth gt 0">
+		    	, #{boDepth,jdbcType=NUMERIC}
+		    </if>
+		)
+	</insert>
+	
+	<update id="updateBoard" parameterType="kr.or.anyapart.board.vo.BoardVO">
+		UPDATE BOARD
+		   SET BO_TITLE = #{boTitle, jdbcType=VARCHAR}
+				,BO_CONTENT = #{boContent, jdbcType=CLOB}
+		 WHERE BO_NO = #{boNo, jdbcType=NUMERIC}
+	</update>
+	
+	<select id="selectBoParentIsDeleted" parameterType="kr.or.anyapart.board.vo.BoardVO" resultType="int">
+		SELECT COUNT(BO_NO)
+		  FROM BOARD
+		 WHERE BO_NO = #{boParent}
+		   AND BO_DELETE='Y'
+		   AND BO_DEPTH=1
+	</select>
+	
+	<select id="selectBoChildCount" parameterType="kr.or.anyapart.board.vo.BoardVO" resultType="int">
+		SELECT COUNT(BO_NO)
+		  FROM BOARD
+		 WHERE BO_PARENT = #{boParent}	
+	</select>
+	
+	<delete id="deleteBoard" parameterType="int">
+		MERGE INTO BOARD A
+		USING(
+		    SELECT COUNT(BO_NO) CNT
+		    FROM BOARD
+		    START WITH BO_NO = #{boNo}
+		    CONNECT BY PRIOR BO_NO = BO_PARENT
+		) B ON (A.BO_NO = #{boNo})
+		WHEN MATCHED THEN
+		   UPDATE SET
+		    BO_TITLE = '삭제된 글',
+		    BO_CONTENT = '삭제된 글의 내용',
+		    BO_DELETE = 'Y'
+		   DELETE WHERE B.CNT = 1
+	</delete>
+</mapper>
