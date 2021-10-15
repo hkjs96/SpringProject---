@@ -1,3 +1,5 @@
+# ReadMe수정중...
+
 # SpringTeamProject-AnyApart - 아파트 관리 시스템
 
 ## 수행한 역할 DA를 중점으로 수행
